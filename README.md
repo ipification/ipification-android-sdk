@@ -20,9 +20,7 @@ implementation "com.ipification.android:ipification-sdk:2.2.0"
 
 - `ipification-auth` - Android SDK library module.
 - `app` - Stage demo app for testing and learning the SDK flows.
-- `docs/ip` - Standard IP authentication documentation.
-- `docs/ip-automode` - IP auto-mode documentation.
-- `docs/multi-channel-auth-flow.md` - Multi-channel flow notes.
+- `docs/` - Standard IP authentication documentation.
 
 ## Requirements
 
@@ -37,60 +35,6 @@ The SDK library module publishes the release artifact:
 
 ```text
 com.ipification.android:ipification-sdk:2.2.0
-```
-
-The `com.ipification` namespace is verified in Sonatype Central Portal and permits publishing the `com.ipification.android` group.
-
-Create a PGP key, publish its public key to a supported key server, and export the private key for Gradle:
-
-```bash
-gpg --full-generate-key
-gpg --list-secret-keys --keyid-format LONG
-gpg --keyserver keyserver.ubuntu.com --send-keys YOUR_LONG_KEY_ID
-gpg --export-secret-keys YOUR_LONG_KEY_ID > ~/.gradle/ipification-signing-key.gpg
-```
-
-Configure signing credentials outside the repository in `~/.gradle/gradle.properties`:
-
-```properties
-signing.keyId=LAST_8_CHARACTERS_OF_KEY_ID
-signing.password=your-key-password
-signing.secretKeyRingFile=/absolute/path/to/.gradle/ipification-signing-key.gpg
-```
-
-Generate the Maven Central Portal upload bundle:
-
-```bash
-JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
-ANDROID_HOME="$HOME/Library/Android/sdk" \
-./gradlew :ipification-auth:generateCentralPortalBundle --no-daemon
-```
-
-Upload the generated zip from `ipification-auth/build/distributions/` in the Central Portal deployments page, wait for validation, then publish it.
-
-### Internal Jenkins / Artifactory Release
-
-The existing internal publication remains available for Jenkins and does not require the Maven Central PGP key. Store the Artifactory username and password as Jenkins secret credentials, then expose them only to the publish step.
-
-Publish to the configured internal Artifactory repository:
-
-```bash
-ARTIFACTORY_USERNAME="$JENKINS_ARTIFACTORY_USERNAME" \
-ARTIFACTORY_PASSWORD="$JENKINS_ARTIFACTORY_PASSWORD" \
-./gradlew clean :ipification-auth:artifactoryPublish --no-daemon
-```
-
-The default target is `libs-snapshot-local`. Override it for an approved release job with `-Partifactory_repo_key=mobile-libs-release`.
-
-The internal and Maven Central workflows publish the same coordinate and version, but they use separate Gradle publications:
-
-- `aar` - internal Jenkins/Artifactory publication.
-- `central` - signed Maven Central publication.
-
-The stage app package is:
-
-```text
-com.ipification.demoapp.stage
 ```
 
 ## Build The Demo
@@ -135,18 +79,16 @@ The demo configures the SDK in `ProcessViewModel` before each flow:
 
 ```kotlin
 IPConfiguration.getInstance().apply {
-    debug = true
-    CLIENT_ID = client.clientId
-    REDIRECT_URI = Uri.parse("${client.redirectUri}/$serverId")
-    REALM = ConfigManager.getRealm()
-    BASE_URL = ConfigManager.getSelectedServerUrl()?.replace("/auth", "")
+    CLIENT_ID = "your_client_id"
+    REDIRECT_URI = "redirect_uri"
+    REALM = "ipification"
 }
 ```
 
 For TS43 and SMS flows, the app configures the SDK to use the backend URL provided by the showcase configuration:
 
 ```kotlin
-val backendUrl = ConfigManager.getBackendUrl()
+val backendUrl = "your_backend_url"
 
 IPConfiguration.getInstance().apply {
     TS43_BACKEND_URL_SANDBOX = backendUrl
@@ -230,7 +172,7 @@ Code path:
 | Start flow | `ProcessViewModel.startAuthenticationWithUserFlow` | `app/src/main/java/com/ipification/demoapp/model/ProcessViewModel.kt:62` |
 | SDK auth call | `ProcessViewModel.doAuth` | `app/src/main/java/com/ipification/demoapp/model/ProcessViewModel.kt:183` |
 | Exchange auth code | `ProcessViewModel.exchangeToken` | `app/src/main/java/com/ipification/demoapp/model/ProcessViewModel.kt:202` |
-| Backend request | `ProcessViewModel.performTokenExchange` | `app/src/main/java/com/ipification/demoapp/model/ProcessViewModel.kt:558` |
+| Backend Request | `ProcessViewModel.performTokenExchange` | `app/src/main/java/com/ipification/demoapp/model/ProcessViewModel.kt:558` |
 
 ## Login IP Flow
 
