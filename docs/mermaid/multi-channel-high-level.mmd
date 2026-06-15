@@ -1,0 +1,41 @@
+flowchart TD
+    A["Client calls startAuthentication()"] --> B["Read AUTH_CHANNELS priority list"]
+    B --> C["Try channels in configured order"]
+
+    C --> T["1. Try TS43"]
+    T --> T_RESULT{"TS43 result"}
+
+    T_RESULT -- "Success" --> OK_TS43["Return success: TS43 verified"]
+    T_RESULT -- "Fallback error" --> I["2. Try IP if configured"]
+    T_RESULT -- "Non-fallback error" --> ERR_TS43["Return TS43 error"]
+
+    I --> I_RESULT{"IP result"}
+    I_RESULT -- "Success" --> OK_IP["Return success: IP auth code or token"]
+    I_RESULT -- "Fallback error" --> S["3. Try SMS if configured"]
+    I_RESULT -- "Token exchange error" --> S["3. Try SMS if configured"]
+
+    NOTE_TOKEN_FALLBACK["Note: token exchange failures fallback only when another channel is configured. If no next channel exists, return the token error."]
+    T_RESULT -.-> NOTE_TOKEN_FALLBACK
+    I_RESULT -.-> NOTE_TOKEN_FALLBACK
+
+    S --> S_RESULT{"SMS / OTP result"}
+    S_RESULT -- "OTP initiated" --> OTP["Return onOTPRequired(auth_req_id, nonce)"]
+    S_RESULT -- "SMS auth failed" --> ERR_SMS["Return SMS error if no next channel"]
+
+    OTP --> USER["Client shows OTP input"]
+    USER --> VERIFY["Client calls verifySMSOTP()"]
+    VERIFY --> V_RESULT{"OTP verify result"}
+    V_RESULT -- "Success" --> OK_SMS["Return success: SMS verified"]
+    V_RESULT -- "Failure" --> ERR_OTP["Return OTP verification error"]
+
+    classDef success fill:#d9fdd3,stroke:#2e7d32,color:#1b5e20
+    classDef error fill:#ffe0e0,stroke:#c62828,color:#8e0000
+    classDef fallback fill:#fff4cc,stroke:#f9a825,color:#6d4c00
+    classDef process fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef note fill:#f5f5f5,stroke:#616161,color:#212121,stroke-dasharray: 5 5
+
+    class OK_TS43,OK_IP,OK_SMS success
+    class ERR_TS43,ERR_SMS,ERR_OTP error
+    class T_RESULT,I_RESULT,S_RESULT,V_RESULT fallback
+    class A,B,C,T,I,S,OTP,USER,VERIFY process
+    class NOTE_TOKEN_FALLBACK note

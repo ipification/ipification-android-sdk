@@ -1,0 +1,28 @@
+
+# Gradle / Android Studio
+.gradle/
+.idea/
+.kotlin/
+build/
+**/build/
+*.iml
+
+# Local machine configuration
+local.properties
+*.keystore
+*.jks
+
+# Generated release artifacts
+*.apk
+*.aab
+*.aar
+**/release/
+**/debug/
+
+# Partner/private app configuration
+google-services.json
+ipification-services.json
+
+# OS/editor files
+.DS_Store
+Thumbs.db

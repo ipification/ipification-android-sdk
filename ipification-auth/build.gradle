@@ -1,0 +1,195 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+def GROUP_ID = 'com.ipification.android'
+def ARTIFACT_ID = 'ipification-sdk'
+def VERSION_NAME = '2.2.0'
+def PROJECT_URL = 'https://github.com/bvantagelimited/ipification-android-sdk'
+def propertyOrEnvironment = { String propertyName, String environmentName ->
+    def propertyValue = findProperty(propertyName)?.toString()?.trim()
+    propertyValue ?: System.getenv(environmentName)?.trim() ?: System.getenv(propertyName)?.trim()
+}
+def configuredArtifactoryUrl = propertyOrEnvironment('artifactory_url', 'ARTIFACTORY_URL') ?: 'https://artifacts.ipification.com/artifactory'
+def normalizedArtifactoryUrl = configuredArtifactoryUrl.replaceAll('/+$', '')
+def ARTIFACTORY_URL = normalizedArtifactoryUrl.endsWith('/artifactory')
+        ? normalizedArtifactoryUrl
+        : "${normalizedArtifactoryUrl}/artifactory"
+def ARTIFACTORY_REPO_KEY = propertyOrEnvironment('artifactory_repo_key', 'ARTIFACTORY_REPO_KEY') ?: 'libs-snapshot-local'
+def ARTIFACTORY_USERNAME = propertyOrEnvironment('artifactory_username', 'ARTIFACTORY_USERNAME')
+def ARTIFACTORY_PASSWORD = propertyOrEnvironment('artifactory_password', 'ARTIFACTORY_PASSWORD')
+
+android {
+    namespace 'com.ipification.mobile.sdk'
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 35
+        compileSdk 35
+        versionCode 220000
+        versionName VERSION_NAME
+        buildConfigField("String", "VERSION_NAME", "\"$VERSION_NAME\"")
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    buildFeatures {
+        viewBinding true
+        buildConfig = true
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'com.google.android.material:material:1.14.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+    implementation 'com.squareup.okhttp3:okhttp:5.3.2'
+    implementation "androidx.webkit:webkit:1.11.0"
+
+    // TS43 CIBA - Credential Manager for phone number hint selection
+    // compileOnly: apps using TS43 must add these dependencies themselves
+    compileOnly 'androidx.credentials:credentials:1.6.0'
+    compileOnly 'androidx.credentials:credentials-play-services-auth:1.6.0'
+}
+
+publishing {
+    publications {
+        // Keep the original publication contract used by Jenkins/Artifactory.
+        aar(MavenPublication) {
+            groupId GROUP_ID
+            artifactId ARTIFACT_ID
+            version = VERSION_NAME
+
+            artifact(layout.buildDirectory.file("outputs/aar/${project.getName()}-release.aar"))
+            pom.withXml {
+                def dependenciesNode = asNode().appendNode('dependencies')
+                configurations.implementation.allDependencies.each {
+                    def dependencyNode = dependenciesNode.appendNode('dependency')
+                    dependencyNode.appendNode('groupId', it.group)
+                    dependencyNode.appendNode('artifactId', it.name)
+                    dependencyNode.appendNode('version', it.version)
+                }
+            }
+        }
+
+        // Maven Central requires richer metadata, sources, javadoc, and signatures.
+        central(MavenPublication) {
+            groupId GROUP_ID
+            artifactId ARTIFACT_ID
+            version = VERSION_NAME
+
+            afterEvaluate {
+                from components.release
+            }
+
+            pom {
+                name = 'IPification Android SDK'
+                description = 'Android SDK for integrating IPification authentication flows.'
+                url = PROJECT_URL
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'ipification'
+                        name = 'IPification'
+                        organization = 'IPification'
+                        organizationUrl = 'https://www.ipification.com'
+                    }
+                }
+                scm {
+                    connection = "scm:git:${PROJECT_URL}.git"
+                    developerConnection = "scm:git:${PROJECT_URL}.git"
+                    url = PROJECT_URL
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'centralPortalBundle'
+            url = layout.buildDirectory.dir('central-portal-repo')
+        }
+        maven {
+            name = 'internalArtifactory'
+            url = uri("${ARTIFACTORY_URL}/${ARTIFACTORY_REPO_KEY}")
+            credentials {
+                username = ARTIFACTORY_USERNAME
+                password = ARTIFACTORY_PASSWORD
+            }
+        }
+    }
+}
+
+tasks.register('androidJavadocsJar', Jar) {
+    archiveClassifier = 'javadoc'
+    from(rootProject.file('README.md')) {
+        into 'META-INF'
+    }
+}
+
+publishing.publications.named('central') {
+    artifact tasks.named('androidJavadocsJar')
+}
+
+signing {
+    def signingKey = findProperty('signingInMemoryKey')
+    def signingPassword = findProperty('signingInMemoryKeyPassword')
+    if (signingKey) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    sign publishing.publications.central
+}
+
+tasks.register('generateCentralPortalBundle', Zip) {
+    dependsOn tasks.named('publishCentralPublicationToCentralPortalBundleRepository')
+    from(layout.buildDirectory.dir('central-portal-repo')) {
+        include "${GROUP_ID.replace('.', '/')}/${ARTIFACT_ID}/${VERSION_NAME}/**"
+    }
+    archiveFileName = "${ARTIFACT_ID}-${VERSION_NAME}-central-portal-bundle.zip"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+}
+
+tasks.register('artifactoryPublish') {
+    group = 'publishing'
+    description = 'Publishes the legacy AAR publication to the internal Artifactory repository.'
+    dependsOn tasks.named('publishAarPublicationToInternalArtifactoryRepository')
+}
+
+def validateInternalArtifactory = tasks.register('validateInternalArtifactory') {
+    doLast {
+        if (!ARTIFACTORY_USERNAME || !ARTIFACTORY_PASSWORD) {
+            throw new GradleException(
+                    'Artifactory credentials are missing. Configure artifactory_username/artifactory_password ' +
+                            'as Gradle properties or ARTIFACTORY_USERNAME/ARTIFACTORY_PASSWORD as environment variables.'
+            )
+        }
+        logger.lifecycle("Internal Artifactory target: ${ARTIFACTORY_URL}/${ARTIFACTORY_REPO_KEY}")
+    }
+}
+
+afterEvaluate {
+    tasks.named('publishAarPublicationToInternalArtifactoryRepository') {
+        dependsOn tasks.named('bundleReleaseAar'), validateInternalArtifactory
+    }
+}

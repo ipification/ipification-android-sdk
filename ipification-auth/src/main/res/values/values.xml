@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#ed1e26</color>
+    <color name="colorAccent">#c91636</color>
+    <color name="colorPrimaryDark">#b20000</color>
+    <color name="colorSeparator">#1e000000</color>
+    <color name="transparent">#00000000</color>
+    <color name="blue_900">#222b45</color>
+    <color name="blue_gray_400">#adbecf</color>
+    <color name="blue_gray_500">#98aabc</color>
+    <color name="blue_gray_800">#4b6185</color>
+    <color name="gray_100">#eff4f9</color>
+    <color name="gray_200">#e9e9e9</color>
+    <color name="gray_300">#acb1c0</color>
+    <color name="gray_400">#a6a6a6</color>
+    <color name="gray_500">#757575</color>
+    <color name="gray_600">#6b6b6b</color>
+    <color name="gray_800">#414141</color>
+    <color name="gray_900">#232323</color>
+    <color name="green_600">#00d563</color>
+    <color name="green_700">#1bd741</color>
+    <!-- Text color for light mode - dark text on light background -->
+    <color name="text_color_adaptive">#414141</color>
+    <dimen name="margin_10">10dp</dimen>
+    <dimen name="margin_12">12dp</dimen>
+    <dimen name="margin_16">16dp</dimen>
+    <dimen name="margin_18">18dp</dimen>
+    <dimen name="margin_20">20dp</dimen>
+    <dimen name="margin_24">24dp</dimen>
+    <dimen name="margin_30">30dp</dimen>
+    <dimen name="margin_35">35dp</dimen>
+    <dimen name="margin_4">4dp</dimen>
+    <dimen name="margin_40">40dp</dimen>
+    <dimen name="margin_45">45dp</dimen>
+    <dimen name="margin_5">5dp</dimen>
+    <dimen name="margin_50">50dp</dimen>
+    <dimen name="margin_60">60dp</dimen>
+    <dimen name="margin_70">70dp</dimen>
+    <dimen name="margin_8">8dp</dimen>
+    <dimen name="size_text_30">30sp</dimen>
+    <dimen name="size_text_small_14">14sp</dimen>
+    <dimen name="size_text_small_16">16sp</dimen>
+    <dimen name="size_text_small_18">18sp</dimen>
+    <dimen name="size_text_small_20">20sp</dimen>
+    <dimen name="size_text_small_22">22sp</dimen>
+    <dimen name="size_text_xlarge">28sp</dimen>
+    <dimen name="size_text_xmlarge_42">42sp</dimen>
+    <dimen name="size_text_xsmall">12sp</dimen>
+
+    <style name="IPTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+    <style name="IPTheme.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+    <style name="btnActionGreen">
+        <item name="android:background">@drawable/im_bg_grey</item>
+        <item name="android:foreground">?android:attr/selectableItemBackground</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">@dimen/size_text_small_18</item>
+    </style>
+    <declare-styleable name="OtpCodeView">
+        <attr format="integer" name="ocvCharCount"/>
+    </declare-styleable>
+</resources>

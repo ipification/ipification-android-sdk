@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- IPification (Authentication service provider) -->
+        <domain includeSubdomains="true">ipification.com</domain>
+
+        <!-- XL (Indonesia) -->
+        <domain includeSubdomains="true">xl.co.id</domain>
+
+        <!-- ADL Digital Services (Thailand) -->
+        <domain includeSubdomains="true">adldigitalservice.com</domain>
+
+        <!-- EnStream (Canadian mobile identity provider) -->
+        <domain includeSubdomains="true">enstreamidentity.com</domain>
+
+        <!-- SmartDigits (TRUID) -->
+        <domain includeSubdomains="true">smartdigits.io</domain>
+
+        <!-- Vodafone (UK) -->
+        <domain includeSubdomains="true">vodafone.com</domain>
+
+        <!-- SmartFren (ID) -->
+        <domain includeSubdomains="true">smartfren.com</domain>
+
+
+        <!-- Argentina -->
+        <domain includeSubdomains="true">openxpand.com</domain>
+
+        <!-- Sri Lanka -->
+        <domain includeSubdomains="true">ideabiz.lk</domain>
+
+        <!-- India -->
+        <domain includeSubdomains="true">airtel.in</domain>
+        <domain includeSubdomains="true">jio.com</domain>
+        <domain includeSubdomains="true">jiolabs.com</domain>
+
+        <!-- CelcomDigi (Malaysia) -->
+        <domain includeSubdomains="true">celcomdigi.com</domain>
+
+    </domain-config>
+</network-security-config>

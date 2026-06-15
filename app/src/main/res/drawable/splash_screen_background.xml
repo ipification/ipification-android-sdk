@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:opacity="opaque">
+    
+    <!-- White background -->
+    <item android:drawable="@android:color/white" />
+    
+    <!-- Logo centered without circular masking -->
+    <item>
+        <bitmap
+            android:src="@drawable/logo"
+            android:gravity="center" />
+    </item>
+</layer-list>

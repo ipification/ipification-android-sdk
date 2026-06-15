@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <application >
+        <activity
+            android:name="com.ipification.mobile.sdk.im.ui.IMVerificationActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustPan"
+            android:launchMode="singleInstance"
+            android:theme="@style/IPTheme"
+            >
+
+        </activity>
+        <activity
+            android:name="com.ipification.mobile.sdk.ip.ui.AuthWebViewActivity"
+            android:exported="false"
+            android:theme="@style/IPTheme.NoActionBar" />
+    </application>
+    <queries>
+        <package android:name="org.telegram.messenger" />
+        <package android:name="org.telegram.messenger.web" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.viber.voip" />
+    </queries>
+</manifest>

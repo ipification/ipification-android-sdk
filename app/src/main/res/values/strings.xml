@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">IP+TSEL Demo App</string>
+    <string name="notification_channel_id">my_channel_id</string>
+</resources>

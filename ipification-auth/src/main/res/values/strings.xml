@@ -1,0 +1,14 @@
+<resources>
+
+    <string name="description_first">Please tap on your preferred messaging app and follow the instruction appearing on the screen</string>
+    <string name="telegram_btn">Quick Login via Telegram</string>
+    <string name="title">Verify Your Phone Number</string>
+    <string name="viber_btn">Quick Login via Viber</string>
+    <string name="whatsapp_btn">Quick Login via Whatsapp</string>
+    <string name="ipification">IPification Verification</string>
+    <string name="notification_channel_id" translatable="false">fcm_default_channel</string>
+    <string name="term_and_condition">
+       <u>Term and Condition</u>.
+    </string>
+    <string name="font_black" translatable="false">inter</string>
+</resources>

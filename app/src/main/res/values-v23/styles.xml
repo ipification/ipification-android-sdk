@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<!--    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">-->
+<!--            &lt;!&ndash; Customize your theme here. &ndash;&gt;-->
+<!--            <item name="colorPrimary">@color/colorPrimary</item>-->
+<!--            <item name="colorPrimaryDark">@color/colorPrimaryDark</item>-->
+<!--            <item name="colorAccent">@color/colorAccent</item>-->
+<!--            <item name="android:windowLightStatusBar">true</item>-->
+<!--    </style>-->
+<!--&lt;!&ndash;    &ndash;&gt;-->
+<!--    <style name="ResultTheme" parent="Theme.MaterialComponents.Light.DarkActionBar">-->
+<!--        &lt;!&ndash; Customize your theme here. &ndash;&gt;-->
+<!--        <item name="colorPrimary">@color/colorPrimary</item>-->
+<!--        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>-->
+<!--        <item name="colorAccent">@color/colorAccent</item>-->
+
+<!--        <item name="android:statusBarColor">@android:color/white</item>-->
+<!--        &lt;!&ndash; Request dark icons &ndash;&gt;-->
+<!--        <item name="android:windowLightStatusBar">true</item>-->
+
+
+<!--    </style>-->
+</resources>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    tools:context="com.ipification.mobile.sdk.im.ui.IMVerificationActivity">
+
+    <FrameLayout
+        android:id="@+id/fl_toolbar_container"
+        android:layout_width="match_parent"
+        android:layout_height="?android:attr/actionBarSize"
+        android:elevation="20dp">
+
+        <TextView
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/colorPrimary"
+            android:gravity="center"
+            android:text="@string/ipification"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/size_text_small_18"
+            android:textStyle="bold"
+            app:fontFamily="@font/inter"
+            tools:text="@string/ipification" />
+
+        <ImageView
+            android:id="@+id/iv_back_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:paddingStart="@dimen/margin_16"
+            android:paddingEnd="@dimen/margin_16"
+            android:src="@drawable/im_ic_back" />
+
+    </FrameLayout>
+
+
+    <FrameLayout
+
+        android:id="@+id/verification_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:context="com.ipification.mobile.sdk.im.ui.IMVerificationActivity"
+
+        >
+
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="50dp"
+            android:gravity="center"
+            android:indeterminate="true"
+            app:layout_constraintBottom_toTopOf="@+id/loadingTextView"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent" />
+
+        <TextView
+            android:id="@+id/loadingTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="150dp"
+            android:gravity="center"
+            android:padding="20px"
+            android:textColor="@color/text_color_adaptive"
+            android:textSize="@dimen/size_text_small_18"
+            android:textStyle="normal"
+            android:lines="2"
+            app:fontFamily="@string/font_black"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+        </TextView>
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>

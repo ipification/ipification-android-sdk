@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    >
+
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <application
+        android:name=".DemoApplication"
+        android:allowBackup="true"
+        android:icon="${appIcon}"
+        android:label="@string/app_name"
+        android:launchMode="singleInstance"
+        android:roundIcon="${appRoundIcon}"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.IPificationDemoApp"
+        android:networkSecurityConfig="@xml/ipification_network_security_config"
+        >
+
+<!--        <activity-->
+<!--            android:name=".activity.MainActivity"-->
+<!--            android:theme="@style/ResultTheme"-->
+<!--            android:exported="false" />-->
+        <activity
+            android:name=".activity.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.App.Starting">  <!-- APPLY the splash theme here -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Deep link for IPificator callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.ipification.demoapp"
+                    android:host="callback" />
+            </intent-filter>
+        </activity>
+
+
+
+        <!--        <activity-->
+<!--            android:name=".activity.SplashActivity"-->
+<!--            android:exported="true"-->
+<!--            android:theme="@style/AppTheme.NoActionBar">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MAIN" />-->
+
+<!--                <category android:name="android.intent.category.LAUNCHER" />-->
+<!--            </intent-filter>-->
+<!--        </activity>-->
+<!--        <activity-->
+<!--            android:name=".activity.WebviewActivity"-->
+<!--            android:exported="false" />-->
+<!--        <activity android:name=".activity.FailResultActivity"-->
+<!--            android:theme="@style/ResultTheme"/>-->
+<!--        <activity android:name=".activity.SuccessResultActivity"   android:theme="@style/ResultTheme"/>-->
+<!--        <activity-->
+<!--            android:name=".activity.PhoneVerifyActivity"-->
+<!--            android:exported="true"-->
+<!--            android:windowSoftInputMode="stateAlwaysHidden" />-->
+<!--        <activity-->
+<!--            android:name=".activity.IMActivity"-->
+<!--            android:exported="true"-->
+<!--            android:launchMode="singleInstance"-->
+<!--            android:windowSoftInputMode="stateAlwaysHidden" />-->
+<!--        <activity-->
+<!--            android:name=".activity.HomeActivity"-->
+<!--            android:exported="true"-->
+<!--            android:launchMode="singleInstance"-->
+<!--            android:windowSoftInputMode="stateAlwaysHidden" />-->
+        <activity
+            android:name="com.ipification.mobile.sdk.im.ui.IMVerificationActivity"
+            android:exported="true"
+            android:launchMode="singleInstance"
+            android:theme="@style/IPTheme"
+            android:windowSoftInputMode="adjustPan">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <!-- optional: set up Android App Link -->
+                <data
+                    android:host="ip-demo-app.ipification.com"
+                    android:scheme="https" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.ipification.demoapp"
+                    android:host="auth" />
+            </intent-filter>
+        </activity>
+
+        <!-- Firebase Messaging Service for IM notifications -->
+        <service
+            android:name=".im.CustomFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/notification_channel_id" />
+
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="true" />
+
+        <meta-data
+            android:name="preloaded_fonts"
+            android:resource="@array/preloaded_fonts" />
+    </application>
+
+</manifest>
