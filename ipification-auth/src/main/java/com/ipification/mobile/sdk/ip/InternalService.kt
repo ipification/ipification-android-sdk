@@ -391,16 +391,24 @@ internal class InternalService<T>() {
                                         log("Cellular connected")
                                 }
                                 Log.e("InternalService", "no Internet")
-                                log("wait ${NO_INTERNET_RETRY_DELAY_MS}ms before retrying with cellular")
+                                log("wait ${NO_INTERNET_RETRY_DELAY_MS}ms before forcing cellular network")
                                 mainHandler.postDelayed({
-                                        NetworkUtils.checkPrivateIP(context, null)
-                                        if (NetworkUtils.hasInternet(context)) {
-                                                log("Internet is active after wait")
-                                        } else {
-                                                log("Internet is still inactive after wait, continue with cellular")
-                                        }
-                                        handleConnection(false, null, request, IPConfiguration.getInstance().bindAppToCellularNetwork,
-                                                IPConfiguration.getInstance().useWebViewInsteadOfApi, internalCallback)
+                                        log("force cellular network after no internet wait")
+                                        networkManager.connect(object : IPNetworkCallback {
+                                                override fun onSuccess(network: Network) {
+                                                        log("networkManager.connect after no internet wait - onSuccess: ${request.apiType?.name}")
+                                                        handleConnection(false, network, request, IPConfiguration.getInstance().bindAppToCellularNetwork,
+                                                                IPConfiguration.getInstance().useWebViewInsteadOfApi, internalCallback)
+                                                }
+
+                                                override fun onError(error: CellularException) {
+                                                        Log.d("InternalService", "connect error " + error.sdkErrorCode)
+                                                        log("networkManager.connect after no internet wait - error: ${error.sdkErrorCode}")
+
+                                                        val timeout = IPConfiguration.getInstance().TIMEOUT_RELEASE_NETWORK
+                                                        finishWithUnregisterDelay(timeout) { it.onError(error) }
+                                                }
+                                        })
                                 }, NO_INTERNET_RETRY_DELAY_MS)
                                 return
                         }else{
