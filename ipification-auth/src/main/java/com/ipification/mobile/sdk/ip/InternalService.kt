@@ -393,29 +393,13 @@ internal class InternalService<T>() {
                                 Log.e("InternalService", "no Internet")
                                 log("wait ${NO_INTERNET_RETRY_DELAY_MS}ms before forcing cellular network")
                                 mainHandler.postDelayed({
-                                        log("force cellular network after no internet wait")
-                                        networkManager.connect(object : IPNetworkCallback {
-                                                override fun onSuccess(network: Network) {
-                                                        log("networkManager.connect after no internet wait - onSuccess: ${request.apiType?.name}")
-                                                        handleConnection(false, network, request, IPConfiguration.getInstance().bindAppToCellularNetwork,
-                                                                IPConfiguration.getInstance().useWebViewInsteadOfApi, internalCallback)
-                                                }
-
-                                                override fun onError(error: CellularException) {
-                                                        Log.d("InternalService", "connect error " + error.sdkErrorCode)
-                                                        log("networkManager.connect after no internet wait - error: ${error.sdkErrorCode}")
-
-                                                        val timeout = IPConfiguration.getInstance().TIMEOUT_RELEASE_NETWORK
-                                                        finishWithUnregisterDelay(timeout) { it.onError(error) }
-                                                }
-                                        })
+                                        forceCellularConnection(request, false, "after no internet wait")
                                 }, NO_INTERNET_RETRY_DELAY_MS)
                                 return
                         }else{
                                 log("Internet is active")
                         }
-                        handleConnection(false, null, request, IPConfiguration.getInstance().bindAppToCellularNetwork,
-                                IPConfiguration.getInstance().useWebViewInsteadOfApi, internalCallback)
+                        forceCellularConnection(request, false, "wifi disabled")
                         return
                 }else{
                         log("WIFI IS ENABLED")
@@ -471,11 +455,34 @@ internal class InternalService<T>() {
                         return
                 }
 
-                // When bound, the process default network is `network` — pass null so sockets
-                // use the bound default; if bind failed, pass the network explicitly.
-                val targetForConnect: Network? = if (bound) null else network
+                // Keep passing the selected network so OkHttp can use network-scoped sockets,
+                // DNS, and diagnostics even when the process bind succeeds.
+                val targetForConnect: Network? = network
                 log("connect with targetForConnect $targetForConnect")
                 connect(request, targetForConnect, callback)
+        }
+
+        private fun forceCellularConnection(
+                request: AuthRequest,
+                isWifiEnabled: Boolean,
+                reason: String
+        ) {
+                log("force cellular network - $reason")
+                networkManager.connect(object : IPNetworkCallback {
+                        override fun onSuccess(network: Network) {
+                                log("networkManager.connect - onSuccess: ${request.apiType?.name} - $reason")
+                                handleConnection(isWifiEnabled, network, request, IPConfiguration.getInstance().bindAppToCellularNetwork,
+                                        IPConfiguration.getInstance().useWebViewInsteadOfApi, internalCallback)
+                        }
+
+                        override fun onError(error: CellularException) {
+                                Log.d("InternalService", "connect error " + error.sdkErrorCode)
+                                log("networkManager.connect - error: ${error.sdkErrorCode} - $reason")
+
+                                val timeout = IPConfiguration.getInstance().TIMEOUT_RELEASE_NETWORK
+                                finishWithUnregisterDelay(timeout) { it.onError(error) }
+                        }
+                })
         }
         private val internalCallback = object: CellularCallback<T>{
                 override fun onSuccess(response: T) {
