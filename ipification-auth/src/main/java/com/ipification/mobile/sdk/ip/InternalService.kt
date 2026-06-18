@@ -391,6 +391,18 @@ internal class InternalService<T>() {
                                         log("Cellular connected")
                                 }
                                 Log.e("InternalService", "no Internet")
+                                log("wait ${NO_INTERNET_RETRY_DELAY_MS}ms before retrying with cellular")
+                                mainHandler.postDelayed({
+                                        NetworkUtils.checkPrivateIP(context, null)
+                                        if (NetworkUtils.hasInternet(context)) {
+                                                log("Internet is active after wait")
+                                        } else {
+                                                log("Internet is still inactive after wait, continue with cellular")
+                                        }
+                                        handleConnection(false, null, request, IPConfiguration.getInstance().bindAppToCellularNetwork,
+                                                IPConfiguration.getInstance().useWebViewInsteadOfApi, internalCallback)
+                                }, NO_INTERNET_RETRY_DELAY_MS)
+                                return
                         }else{
                                 log("Internet is active")
                         }
@@ -785,6 +797,7 @@ internal class InternalService<T>() {
         
         @Keep companion object {
                 private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+                private const val NO_INTERNET_RETRY_DELAY_MS = 3_000L
                 private val TAG = "InternalService"
                 /** Releases the cellular network retained by the SDK. */
                 fun unregisterNetwork(context: Context): Boolean{
