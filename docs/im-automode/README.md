@@ -64,7 +64,7 @@ It’s recommended to make use of common libraries for JWT decoding (list of the
 **2.2 Add the following lines to the `app/build.gradle`**:
 
   ```groovy
-  implementation 'com.ipification.android:ipification-sdk:2.2.0'
+  implementation 'com.ipification.android:ipification-sdk:2.2.1'
   ```
 
 ## 3. Configuration
