@@ -119,9 +119,6 @@ class IPConfiguration private constructor() {
     /** Enables HTTP cookie handling for IP requests. */
     var enabledHandleCookie = false
 
-    /** Applies custom DNS only to detected telco hosts. */
-    var forceDNSForOnlyTelco = true
-
     /** Makes sandbox coverage checks use the forced-true endpoint. */
     var coverageAlwaysTrue = false
 
