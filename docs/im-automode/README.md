@@ -48,7 +48,7 @@ It’s recommended to make use of common libraries for JWT decoding (list of the
     - Gradle Classpath 4+ 
 
     # Dependency
-    - OKHttp 3 / 4
+    - OKHttp 5
 
     # Permissions:
     The required permissions for proper functionality of our SDK have already been incorporated within the SDK itself. 
@@ -60,38 +60,6 @@ It’s recommended to make use of common libraries for JWT decoding (list of the
       <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
 ## 2. Adding IPification SDK
-
-  **2.1 Add IPification's maven to `repositories` block in `project/build.gradle`**:
-
-```json
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        ...
-        maven {
-            url "https://artifacts.ipification.com/artifactory/mobile-libs-release/"
-        }
-    }
-}
-```
-
-Note: When creating a new project in `Android Studio Arctic Fox Canary 8` or newer IDE, Google has made some changes in the project label Gradle.
-In `settings.gradle`, add IPification's maven to `repositories`:
-
-  ```json
-  dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-        ...
-        maven {
-            url "https://artifacts.ipification.com/artifactory/mobile-libs-release/"
-        }
-      }
-  }
-  ```
 
 **2.2 Add the following lines to the `app/build.gradle`**:
 
@@ -331,8 +299,8 @@ When a client wants to validate the phone number, it should be passed via `login
 Check out our sample App to see how it works:
 <!-- tabs:start -->
 ## **Kotlin**
-https://github.com/bvantagelimited/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-kotlin
+https://github.com/ipification/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-kotlin
 
 ## **Java**
-https://github.com/bvantagelimited/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-java
+https://github.com/ipification/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-java
 <!-- tabs:end -->

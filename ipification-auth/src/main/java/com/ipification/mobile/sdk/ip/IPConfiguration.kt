@@ -375,7 +375,7 @@ class IPConfiguration private constructor() {
 //        return HOST_NAME
 //    }
     internal fun getCheckCoverageUrl() : String{
-        //implement https://github.com/bvantagelimited/ipification-android-sdk/issues/22
+        //implement https://github.com/ipification/ipification-android-sdk/issues/22
         if(BASE_URL.isNullOrEmpty()){
             if(ENV == IPEnvironment.SANDBOX){
                 if (coverageAlwaysTrue){
@@ -403,7 +403,7 @@ class IPConfiguration private constructor() {
     }
 
 
-    // implement https://github.com/bvantagelimited/ipification-android-sdk/issues/23
+    // implement https://github.com/ipification/ipification-android-sdk/issues/23
     // start
     internal fun getSDKLogUrl() : String{
         if(BASE_URL.isNullOrEmpty()){
