@@ -37,19 +37,41 @@ import com.ipification.mobile.sdk.im.IMService
 import com.ipification.mobile.sdk.im.IMTheme
 import com.ipification.mobile.sdk.im.VerifyCompleteListener
 import com.ipification.mobile.sdk.im.model.IMSession
+import androidx.core.net.toUri
 
 /** Internal engine that routes coverage and authentication requests over cellular or IM flows. */
 internal class InternalService<T>() {
+        /** Locale used when the flow falls back to IM verification. */
         internal var imLocale: IMLocale? = null
+
+        /** Theme used when the flow falls back to IM verification. */
         internal var imTheme: IMTheme? = null
+
+        /** Coordinates Android cellular network requests for IP authentication. */
         private lateinit var networkManager : NetworkManager
+
+        /** Application context used for network, telephony, and configuration access. */
         private lateinit var context: Context
+
+        /** Activity used when the flow needs to open UI such as WebView or IM verification. */
         private lateinit var activity: Activity
+
+        /** Whether this request may fall back from IP authentication to IM verification. */
         private var supportsImFallback = false
+
+        /** Prevents retrying IM fallback more than once for the same request flow. */
         @Volatile private var hasTriedImFallback = false
+
+        /** Whether the SDK should unregister the cellular network before delivering terminal callbacks. */
         private var autoUnregisterNetwork = IPConfiguration.getInstance().autoUnregisterNetwork
+
+        /** Original auth request reused when IP authentication fails and IM fallback is available. */
         private var imFallbackRequest: AuthRequest? = null
+
+        /** Snapshot of debug logging configuration for this service instance. */
         private var debugEnabled = false
+
+        /** Callback supplied by the caller and consumed exactly once at terminal completion. */
         private var finalCallback: CellularCallback<T>? = null
 
         constructor(ctx: Context) : this() {
@@ -67,7 +89,8 @@ internal class InternalService<T>() {
                 this.finalCallback = callback
 
                 if(IPConfiguration.getInstance().customUrls == false){
-                        IPConfiguration.getInstance().COVERAGE_URL = Uri.parse(IPConfiguration.getInstance().getCheckCoverageUrl())
+                        IPConfiguration.getInstance().COVERAGE_URL =
+                            IPConfiguration.getInstance().getCheckCoverageUrl().toUri()
                 }
                 if(IPConfiguration.getInstance().CLIENT_ID.isEmpty()){
                         handleException(java.lang.NullPointerException(ErrorMessages.EMPTY_CLIENT_ID), ErrorCode.EMPTY_CLIENT_ID)
@@ -102,7 +125,8 @@ internal class InternalService<T>() {
                 this.finalCallback = callback
 
                 if(IPConfiguration.getInstance().customUrls == false){
-                        IPConfiguration.getInstance().COVERAGE_URL = Uri.parse(IPConfiguration.getInstance().getCheckCoverageUrl())
+                        IPConfiguration.getInstance().COVERAGE_URL =
+                            IPConfiguration.getInstance().getCheckCoverageUrl().toUri()
                 }
 
                 if(IPConfiguration.getInstance().COVERAGE_URL == null) {
@@ -167,7 +191,8 @@ internal class InternalService<T>() {
                 this.imFallbackRequest = null
 
                 if(IPConfiguration.getInstance().customUrls == false){
-                        IPConfiguration.getInstance().AUTHORIZATION_URL = Uri.parse(IPConfiguration.getInstance().getAuthorizationUrl())
+                        IPConfiguration.getInstance().AUTHORIZATION_URL =
+                            IPConfiguration.getInstance().getAuthorizationUrl().toUri()
                 }
                 if(IPConfiguration.getInstance().AUTHORIZATION_URL == null) {
                         handleException(
@@ -339,7 +364,7 @@ internal class InternalService<T>() {
 
         /**
          * perform normal request
-         * @param authRequest : AuthRequest
+         * @param request : AuthRequest
          */
         private fun performRequest(request: AuthRequest) {
                 request.includeSimOperatorParameters = true
@@ -383,18 +408,14 @@ internal class InternalService<T>() {
                                 Log.d("InternalService", "isCellularConnected: " + NetworkUtils.isCellularConnected(context) )
                                 Log.d("InternalService", "getOperatorName: " + DeviceUtils.getInstance(context).activeSimOperator().getOperatorName())
                                 if(!NetworkUtils.isCellularConnected(context)){
-                                        Log.e("InternalService", "no SIM was active")
                                         log("NO SIM was active")
                                         handleNoSIMCase()
                                         return
                                 }else{
                                         log("Cellular connected")
                                 }
-                                Log.e("InternalService", "no Internet")
-                                log("wait ${NO_INTERNET_RETRY_DELAY_MS}ms before forcing cellular network")
-                                mainHandler.postDelayed({
-                                        forceCellularConnection(request, false, "after no internet wait")
-                                }, NO_INTERNET_RETRY_DELAY_MS)
+                                Log.e("InternalService", "cellular is on but no Internet, forcing cellular and wait for internet is ready")
+                                forceCellularConnection(request, false, "cellular is on but no Internet, forcing cellular and wait for internet is ready")
                                 return
                         }else{
                                 log("Internet is active")
@@ -406,24 +427,21 @@ internal class InternalService<T>() {
                         IPConfiguration.getInstance().TIMEOUT_RELEASE_NETWORK = IPConfiguration.getInstance().DEFAULT_TIMEOUT_RELEASE_NETWORK
                 }
                 log("isMobileDataEnabled return true")
-
-                networkManager.connect(object : IPNetworkCallback {
-                        override fun onSuccess(network: Network) {
-                                log("networkManager.connect - onSuccess: ${request.apiType?.name}")
-                                handleConnection(true, network, request, IPConfiguration.getInstance().bindAppToCellularNetwork,
-                                        IPConfiguration.getInstance().useWebViewInsteadOfApi, internalCallback)
-
-                        }
-
-                        override fun onError(error: CellularException) {
-                                Log.d("InternalService", "connect error " + error.sdkErrorCode)
-                                log("networkManager.connect - error: ${error.sdkErrorCode}")
-
-                                val timeout = IPConfiguration.getInstance().TIMEOUT_RELEASE_NETWORK
-                                finishWithUnregisterDelay(timeout) { it.onError(error) }
-                        }
-                })
+                forceCellularConnection(request, true, "wifi enabled")
         }
+        /**
+         * Continues the request using the selected network and configured transport mode.
+         *
+         * The method binds the process when requested, starts the WebView flow when configured,
+         * or passes the selected network to the OkHttp request path.
+         *
+         * @param isWifiEnabled Whether Wi-Fi was active when this connection path was selected.
+         * @param network Cellular network selected for this request, or null when no network is available.
+         * @param request API request to execute.
+         * @param bindAppToCellularNetwork Whether the process should be bound to the selected network.
+         * @param useWebViewInsteadOfApi Whether the request should continue through the WebView flow.
+         * @param callback Callback that receives the request result.
+         */
         private fun handleConnection(
                 isWifiEnabled: Boolean,
                 network: Network?,
@@ -440,7 +458,7 @@ internal class InternalService<T>() {
                         return
                 }
 
-                // Try to bind the whole process to `network`
+                // Try to bind the whole process to `network` when bindAppToCellularNetwork is TRUE
                 val bound = if(network != null) {
                         log("bindProcessToNetwork $network")
                         manager.bindProcessToNetwork(network)
@@ -462,6 +480,13 @@ internal class InternalService<T>() {
                 connect(request, targetForConnect, callback)
         }
 
+        /**
+         * Requests a cellular network, then continues the request on that selected network.
+         *
+         * @param request API request to execute after cellular network selection succeeds.
+         * @param isWifiEnabled Whether Wi-Fi was active when this request path was selected.
+         * @param reason Short log label describing why cellular selection is being forced.
+         */
         private fun forceCellularConnection(
                 request: AuthRequest,
                 isWifiEnabled: Boolean,
@@ -484,6 +509,8 @@ internal class InternalService<T>() {
                         }
                 })
         }
+
+        /** Handles terminal responses from IP/API requests and routes them to the final callback. */
         private val internalCallback = object: CellularCallback<T>{
                 override fun onSuccess(response: T) {
                         log("internal callback success: $response")
@@ -557,11 +584,16 @@ internal class InternalService<T>() {
                 }
         }
 
-        /** Follows a redirect returned by the IP authorization endpoint. */
+        /**
+         * Follows a redirect returned by the IP authorization endpoint.
+         *
+         * @param response Redirect response containing the next URL and API type.
+         * @param cellularCallback Callback that receives the redirected request result.
+         */
         private fun handleRedirect(response: RedirectResponse, cellularCallback: CellularCallback<T>) {
                 val url =  response.getUrl()
                 log("redirect response with url: $url")
-                val requestBuilder = AuthRequest.Builder(Uri.parse(url))
+                val requestBuilder = AuthRequest.Builder(url.toUri())
                 requestBuilder.apiType = response.apiType
                 if(IPConfiguration.getInstance().REDIRECT_URI != null){
                         requestBuilder.setRedirectUri(IPConfiguration.getInstance().REDIRECT_URI!!)
@@ -812,8 +844,7 @@ internal class InternalService<T>() {
         
         @Keep companion object {
                 private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
-                private const val NO_INTERNET_RETRY_DELAY_MS = 3_000L
-                private val TAG = "InternalService"
+                private const val TAG = "InternalService"
                 /** Releases the cellular network retained by the SDK. */
                 fun unregisterNetwork(context: Context): Boolean{
                         return NetworkManager.getInstance(context).unregister()
