@@ -47,33 +47,11 @@ These permissions are bundled with the SDK, so you do not need to declare them m
 
 ### 2. Adding IPification SDK
 
-#### 2.1 Add the IPification Maven Repository
-
-Add the IPification Maven repository to the `repositories` block in `project/build.gradle`:
-
-```groovy
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-
-        maven {
-            url "https://artifacts.ipification.com/artifactory/mobile-libs-release/"
-        }
-    }
-}
-```
-
-?> **Gradle settings repositories**
-For projects that manage repositories in `settings.gradle`, add the same Maven repository there instead of `project/build.gradle`.
-
-#### 2.2 Add the SDK Dependency
-
 Add the IPification SDK dependency to `app/build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'com.ipification.android:ipification-sdk:2.2.0'
+    implementation 'com.ipification.android:ipification-sdk:2.2.1'
 }
 ```
 
@@ -86,9 +64,12 @@ Cleartext traffic configuration is only required for the following supported tel
 | Indonesia | XL, Tri, Smartfren |
 | Canada | TELUS |
 | Mexico | Telcel |
-| UK | O2 |
+| UK | O2, Vodafone |
 | Sri Lanka | Dialog |
 | India | Jio |
+| India | Airtel |
+| Malaysia | CelcomDigi |
+| Argentina | Openxpand |
 
 ?> **Why this is needed**
 These telcos require cleartext network traffic for authentication. Enable cleartext traffic only for the required domains, following the [Android network security configuration guide](https://developer.android.com/training/articles/security-config#CleartextTrafficPermitted).
@@ -259,7 +240,7 @@ You can collect the phone number manually or use one of the supported Android re
 | TelephonyManager | Retrieves the phone number programmatically when available. | Requires `READ_PHONE_STATE` or `READ_PHONE_NUMBERS` |
 
 ?> **Implementation examples**
-See the [Android phone number hint code snippets](https://github.com/bvantagelimited/ipification-mobile-sdk-code-snippet/blob/main/android-phone-number-hint.md) for implementation examples.
+See the [Android phone number hint code snippets](https://github.com/ipification/ipification-mobile-sdk-code-snippet/blob/main/android-phone-number-hint.md) for implementation examples.
 
 #### 1.2 Check the Coverage
 
@@ -601,12 +582,7 @@ TS43 supports phone number verification and phone number retrieval for supported
 
 #### TS43 Mobile App Flow Diagram :id=ts43-mobile-app-flow-diagram
 
-<div class="sdk-diagram-card">
-  <img
-    src="images/ts43-mobile-app-flow.png"
-    alt="TS43 mobile app flow diagram"
-  />
-</div>
+![TS43](images/ts43-mobile-app-flow.png)
 
 This diagram shows the mobile-app side of the flow: the SDK starts authentication, uses Credential Manager, and calls your configured backend endpoints.
 
@@ -1508,13 +1484,13 @@ Sample apps with push notification handling:
 #### **Kotlin**
 
 ```
-https://github.com/bvantagelimited/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-kotlin
+https://github.com/ipification/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-kotlin
 ```
 
 #### **Java**
 
 ```
-https://github.com/bvantagelimited/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-java
+https://github.com/ipification/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-java
 ```
 
 <!-- tabs:end -->
@@ -1590,7 +1566,7 @@ curl --location --request POST 'https://example.client-service.com/example/notif
 
 Your backend should send a data notification to the user's device. See the sample Node.js project:
 
-https://github.com/bvantagelimited/mobile-sdk-showcase-apps/tree/master/ipification-merchant-service
+https://github.com/ipification/mobile-sdk-showcase-apps/tree/master/ipification-merchant-service
 
 #### 5.5 Setup IM Theme and Locale (optional)
 Use those two functions to change theme and texts on IM page:
@@ -1927,12 +1903,12 @@ private void initIPification() {
 Use these references when you need SDK size details, release history, or a runnable sample app.
 
 <div class="sdk-resource-grid">
-  <a class="sdk-resource-card" href="https://github.com/bvantagelimited/mobile-sdk-showcase-apps/wiki/Force-Cellular-Network-Functionality-with-Active-VPN-on-iOS-and-Android" target="_blank" rel="noreferrer">
+  <a class="sdk-resource-card" href="https://github.com/ipification/mobile-sdk-showcase-apps/wiki/Force-Cellular-Network-Functionality-with-Active-VPN-on-iOS-and-Android" target="_blank" rel="noreferrer">
     <span class="sdk-resource-card__label">SDK Size</span>
     <strong>Review SDK size and network behavior notes</strong>
     <small>Open GitHub wiki →</small>
   </a>
-  <a class="sdk-resource-card" href="https://github.com/bvantagelimited/mobile-sdk-showcase-apps/wiki/%5BAndroid-SDK%5D-Change-Logs" target="_blank" rel="noreferrer">
+  <a class="sdk-resource-card" href="https://github.com/ipification/mobile-sdk-showcase-apps/wiki/%5BAndroid-SDK%5D-Change-Logs" target="_blank" rel="noreferrer">
     <span class="sdk-resource-card__label">Change Logs</span>
     <strong>Track Android SDK releases and updates</strong>
     <small>Open GitHub wiki →</small>
@@ -1944,12 +1920,12 @@ Use these references when you need SDK size details, release history, or a runna
 Choose a sample project for your preferred Android language.
 
 <div class="sdk-resource-grid">
-  <a class="sdk-resource-card" href="https://github.com/bvantagelimited/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-kotlin" target="_blank" rel="noreferrer">
+  <a class="sdk-resource-card" href="https://github.com/ipification/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-kotlin" target="_blank" rel="noreferrer">
     <span class="sdk-resource-card__label">Kotlin</span>
     <strong>Open the Kotlin sample app</strong>
     <small>View repository →</small>
   </a>
-  <a class="sdk-resource-card" href="https://github.com/bvantagelimited/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-java" target="_blank" rel="noreferrer">
+  <a class="sdk-resource-card" href="https://github.com/ipification/mobile-sdk-showcase-apps/tree/master/ipification-sdk-android-java" target="_blank" rel="noreferrer">
     <span class="sdk-resource-card__label">Java</span>
     <strong>Open the Java sample app</strong>
     <small>View repository →</small>

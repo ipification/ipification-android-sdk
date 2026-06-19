@@ -10,6 +10,6 @@ enum class IPEnvironment {
     /** Production environment for live applications. */
     PRODUCTION,
 
-    /** Partner-supplied endpoints configured through [IPConfiguration]. */
+    /** custom DC endpoints configured through [IPConfiguration.BASE_URL]. */
     CUSTOM_URL
 }

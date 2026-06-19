@@ -267,7 +267,7 @@ class AuthRequest() {
 
         if (queryParameters != null) {
             for ((key, value) in queryParameters!!) {
-                //https://github.com/bvantagelimited/ipification-android-sdk/issues/8
+                //https://github.com/ipification/ipification-android-sdk/issues/8
                 if(key == "login_hint" || key == "phone"){
                     val updatedLoginHint = value.replace("+","").removeWhitespaces()
                     IPConfiguration.getInstance().LOGIN_HINT = updatedLoginHint
