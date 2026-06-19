@@ -582,12 +582,7 @@ TS43 supports phone number verification and phone number retrieval for supported
 
 #### TS43 Mobile App Flow Diagram :id=ts43-mobile-app-flow-diagram
 
-<div class="sdk-diagram-card">
-  <img
-    src="images/ts43-mobile-app-flow.png"
-    alt="TS43 mobile app flow diagram"
-  />
-</div>
+![TS43](images/ts43-mobile-app-flow.png)
 
 This diagram shows the mobile-app side of the flow: the SDK starts authentication, uses Credential Manager, and calls your configured backend endpoints.
 
