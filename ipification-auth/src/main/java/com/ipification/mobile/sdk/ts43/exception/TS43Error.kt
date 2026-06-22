@@ -9,7 +9,6 @@ object TS43ErrorCode {
     const val MISSING_PHONE_NUMBER = 4303
     const val MISSING_TS43_ENDPOINT = 4304
     const val MISSING_CREDENTIAL_MANAGER = 4305
-    const val TS43_NOT_SUPPORTED_IN_MULTI_CHANNEL = 4306
     const val ANDROID_GO_NOT_SUPPORTED = 4307
 
     // Authorization request errors
@@ -41,7 +40,6 @@ object TS43ErrorMessage {
     const val MISSING_PHONE_NUMBER = "TS43: missing phone number (login_hint)"
     const val MISSING_ENDPOINT = "TS43: endpoint not configured"
     const val MISSING_CREDENTIAL_MANAGER = "TS43: Credential Manager not available"
-    const val NOT_SUPPORTED_IN_MULTI_CHANNEL = "TS43: multi-channel authentication is not supported"
     const val ANDROID_GO_NOT_SUPPORTED = "TS43: Android Go devices are not supported"
 
     // Authorization request errors
@@ -71,7 +69,6 @@ object TS43ErrorMessage {
             TS43ErrorCode.MISSING_PHONE_NUMBER -> MISSING_PHONE_NUMBER
             TS43ErrorCode.MISSING_TS43_ENDPOINT -> MISSING_ENDPOINT
             TS43ErrorCode.MISSING_CREDENTIAL_MANAGER -> MISSING_CREDENTIAL_MANAGER
-            TS43ErrorCode.TS43_NOT_SUPPORTED_IN_MULTI_CHANNEL -> NOT_SUPPORTED_IN_MULTI_CHANNEL
             TS43ErrorCode.ANDROID_GO_NOT_SUPPORTED -> ANDROID_GO_NOT_SUPPORTED
             TS43ErrorCode.AUTH_REQUEST_FAILED -> AUTH_REQUEST_FAILED
             TS43ErrorCode.CREDENTIAL_MANAGER_ERROR -> CREDENTIAL_MANAGER_ERROR

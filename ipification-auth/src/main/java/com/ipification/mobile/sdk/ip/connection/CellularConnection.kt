@@ -33,7 +33,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
-import java.net.URI
+import java.net.UnknownHostException
 import java.net.UnknownServiceException
 import java.util.concurrent.TimeUnit
 
@@ -44,6 +44,7 @@ class CellularConnection<T>() {
     private lateinit var context: Context
     private var callback: CellularCallback<T>? = null
     private var network: Network? = null
+    private var useSystemDnsForRetry = false
 
     private val configuration: IPConfiguration
         get() = IPConfiguration.getInstance()
@@ -86,6 +87,7 @@ class CellularConnection<T>() {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onResponse(call: Call, response: Response) {
+                useSystemDnsForRetry = false
                 handleResponse(response, requestUri)
             }
 
@@ -130,24 +132,27 @@ class CellularConnection<T>() {
             builder.cookieJar(cookieJar)
         }
 
-        configureDns(builder, requestUri)
+        configureDns(builder)
         configureTimeouts(builder, retryCount)
         builder.retryOnConnectionFailure(configuration.retryOnConnectionFailure)
 
         return builder.build()
     }
 
-    /** Uses network-specific DNS when configured for this request. */
-    private fun configureDns(builder: OkHttpClient.Builder, requestUri: String) {
+    /** Keeps DNS resolution on the same network used by the request socket. */
+    private fun configureDns(builder: OkHttpClient.Builder) {
         val requestNetwork = network
-        val useNetworkDns = requestNetwork != null &&
-            (!configuration.forceDNSForOnlyTelco || !isIpificationEndpoint(requestUri))
-
-        if (useNetworkDns) {
-            log("enable network specific DNS lookup")
-            builder.dns(NetworkDns(requireNotNull(requestNetwork)))
+        if (requestNetwork != null && !useSystemDnsForRetry) {
+            log("use request-network DNS lookup")
+            builder.dns(NetworkDns(requestNetwork))
         } else {
-            log("use default DNS lookup")
+            log(
+                if (useSystemDnsForRetry) {
+                    "use system DNS lookup for unknown-host retry"
+                } else {
+                    "use default DNS lookup"
+                }
+            )
         }
     }
 
@@ -247,6 +252,9 @@ class CellularConnection<T>() {
 
         if (retryCount < maxRetries) {
             log("Retrying... (${retryCount + 1}/$maxRetries)")
+            if (network != null && exception.hasUnknownHostCause()) {
+                useSystemDnsForRetry = true
+            }
             retryHandler.postDelayed({
                 makeConnection(
                     requestUri = requestUri,
@@ -268,6 +276,16 @@ class CellularConnection<T>() {
                 this.exception = exception
             }
         )
+    }
+
+    /** Detects OkHttp unknown-host failures even when another IOException wraps the cause. */
+    private fun IOException.hasUnknownHostCause(): Boolean {
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is UnknownHostException) return true
+            current = current.cause
+        }
+        return false
     }
 
     /** Parses a response according to the request API type. */
@@ -401,14 +419,6 @@ class CellularConnection<T>() {
         }
     }
 
-    /** Returns whether the request targets IPification's production domain. */
-    private fun isIpificationEndpoint(requestUri: String): Boolean {
-        val host = runCatching { URI(requestUri).host?.lowercase() }.getOrNull() ?: return false
-        val result = host == IPIFICATION_DOMAIN || host.endsWith(".$IPIFICATION_DOMAIN")
-        log("isIpificationEndpoint - $result")
-        return result
-    }
-
     /** Appends a connection message to Logcat and the SDK debug log. */
     private fun log(message: String) {
         Log.d(LOG_TAG, message)
@@ -421,7 +431,6 @@ class CellularConnection<T>() {
         const val LOG_TAG = "CellularConnection"
         const val LOCATION_HEADER = "Location"
         const val CLEARTEXT_ERROR = "CLEARTEXT"
-        const val IPIFICATION_DOMAIN = "ipification.com"
         const val DEFAULT_RETRY_DELAY_MS = 1_000L
         const val RETRY_TIMEOUT_MS = 5_000L
         val REDIRECT_RESPONSE_CODES = 300..310

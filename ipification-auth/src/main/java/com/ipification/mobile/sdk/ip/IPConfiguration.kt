@@ -114,13 +114,10 @@ class IPConfiguration private constructor() {
     var retryOnConnectionFailure = true
 
     /** Maximum connection retry count. */
-    var MAX_RETRIES = 0
+    var MAX_RETRIES = 1
 
     /** Enables HTTP cookie handling for IP requests. */
     var enabledHandleCookie = false
-
-    /** Applies custom DNS only to detected telco hosts. */
-    var forceDNSForOnlyTelco = true
 
     /** Makes sandbox coverage checks use the forced-true endpoint. */
     var coverageAlwaysTrue = false
