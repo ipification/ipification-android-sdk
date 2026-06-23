@@ -5,7 +5,7 @@ apply plugin: 'signing'
 
 def GROUP_ID = 'com.ipification.android'
 def ARTIFACT_ID = 'ipification-sdk'
-def VERSION_NAME = '2.2.11'
+def VERSION_NAME = '2.2.12'
 def PROJECT_URL = 'https://github.com/ipification/ipification-android-sdk'
 def propertyOrEnvironment = { String propertyName, String environmentName ->
     def propertyValue = findProperty(propertyName)?.toString()?.trim()
@@ -27,7 +27,7 @@ android {
         minSdkVersion 21
         targetSdkVersion 35
         compileSdk 35
-        versionCode 220011
+        versionCode 220012
         versionName VERSION_NAME
         buildConfigField("String", "VERSION_NAME", "\"$VERSION_NAME\"")
     }

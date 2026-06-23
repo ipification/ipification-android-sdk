@@ -7,7 +7,7 @@ import org.json.JSONObject
 /**
  * Request model for TS43 CIBA authentication.
  * 
- * @property loginHint Phone number in E.164 format (e.g., "+1234567890") for VerifyPhoneNumber,
+ * @property loginHint Login hint value for VerifyPhoneNumber. A leading '+' is removed for phone numbers.
  *                     or null/empty for GetPhoneNumber operation.
  * @property carrierHint MCC+MNC value used to route the TS43 request.
  * @property clientId OAuth client ID provided by IPification.
@@ -58,11 +58,11 @@ data class TS43AuthRequest(
         private val tokenCustomParams: MutableMap<String, String> = mutableMapOf()
 
         /**
-         * Set the phone number to verify (for VerifyPhoneNumber operation).
-         * @param phoneNumber Phone number in E.164 format without '+' (e.g., "1234567890").
+         * Set the login hint value to verify (for VerifyPhoneNumber operation).
+         * @param loginHint Login hint value. A leading '+' is removed for phone numbers.
          */
-        fun setLoginHint(phoneNumber: String?): Builder {
-            this.loginHint = phoneNumber?.filter(Char::isDigit)
+        fun setLoginHint(loginHint: String?): Builder {
+            this.loginHint = loginHint?.removePrefix("+")
             return this
         }
 
