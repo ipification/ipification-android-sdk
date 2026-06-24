@@ -51,7 +51,7 @@ Add the IPification SDK dependency to `app/build.gradle`:
 
 ```groovy
 dependencies {
-    implementation 'com.ipification.android:ipification-sdk:2.2.2'
+    implementation 'com.ipification.android:ipification-sdk:2.2.3'
 }
 ```
 
