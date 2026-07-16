@@ -183,8 +183,10 @@ class SMSServices {
             }
 
             onLog("SMSServices: Sending auth request to $authEndpoint")
-            onLog("SMSServices: Auth request bytes: ${requestJson.toString().toByteArray(Charsets.UTF_8).size}")
-            onLog("SMSServices: Auth request body:\n$requestJson")
+            if (config.debug) {
+                onLog("SMSServices: Auth request bytes: ${requestJson.toString().toByteArray(Charsets.UTF_8).size}")
+                onLog("SMSServices: Auth request body:\n$requestJson")
+            }
 
             val requestBody = requestJson.toString().toRequestBody(JSON)
             val request = Request.Builder()
@@ -210,8 +212,10 @@ class SMSServices {
                     response.use {
                         val responseBody = it.body?.string()
                         onLog("SMSServices: Auth response - ${it.code}")
-                        onLog("SMSServices: Auth response bytes: ${responseBody?.toByteArray(Charsets.UTF_8)?.size ?: 0}")
-                        onLog("SMSServices: Auth response body:\n${responseBody.orEmpty()}")
+                        if (config.debug) {
+                            onLog("SMSServices: Auth response bytes: ${responseBody?.toByteArray(Charsets.UTF_8)?.size ?: 0}")
+                            onLog("SMSServices: Auth response body:\n${responseBody.orEmpty()}")
+                        }
 
                         if (!it.isSuccessful || responseBody == null) {
                             isRequestInProgress.set(false)
@@ -311,8 +315,10 @@ class SMSServices {
             }
 
             onLog("SMSServices: Sending token request to $tokenEndpoint")
-            onLog("SMSServices: Token request bytes: ${requestJson.toString().toByteArray(Charsets.UTF_8).size}")
-            onLog("SMSServices: Token request body:\n$requestJson")
+            if (config.debug) {
+                onLog("SMSServices: Token request bytes: ${requestJson.toString().toByteArray(Charsets.UTF_8).size}")
+                onLog("SMSServices: Token request body:\n$requestJson")
+            }
 
             val requestBody = requestJson.toString().toRequestBody(JSON)
             val request = Request.Builder()
@@ -339,8 +345,10 @@ class SMSServices {
                         isRequestInProgress.set(false)
                         val responseBody = it.body?.string()
                         onLog("SMSServices: Token response - ${it.code}")
-                        onLog("SMSServices: Token response bytes: ${responseBody?.toByteArray(Charsets.UTF_8)?.size ?: 0}")
-                        onLog("SMSServices: Token response body:\n${responseBody.orEmpty()}")
+                        if (config.debug) {
+                            onLog("SMSServices: Token response bytes: ${responseBody?.toByteArray(Charsets.UTF_8)?.size ?: 0}")
+                            onLog("SMSServices: Token response body:\n${responseBody.orEmpty()}")
+                        }
 
                         if (!it.isSuccessful || responseBody == null) {
                             val error = parseErrorResponse(it.code, responseBody)

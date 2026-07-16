@@ -305,7 +305,11 @@ internal class InternalService<T>() {
         private fun startWebViewFlow(manager: ConnectivityManager, request: AuthRequest, callback: CellularCallback<T>) {
                 try {
                         val url = request.toUri(context).toString()
-                        val trafficSnapshot = WebViewDebugTrafficTracker.start(context, url)
+                        val trafficSnapshot = if (IPConfiguration.getInstance().debug) {
+                                WebViewDebugTrafficTracker.start(context, url)
+                        } else {
+                                null
+                        }
                         // Register bridge listener BEFORE starting activity
                         WebViewAuthBridge.setListener { result ->
                                 // Unbind process from network to avoid leaks
@@ -318,12 +322,14 @@ internal class InternalService<T>() {
                                 .onFailure { Log.e(TAG, "unbind after webview end failed", it) }
 
                                 if (result.isSuccess && result.url != null) {
-                                        WebViewDebugTrafficTracker.finish(
-                                                context = context,
-                                                snapshot = trafficSnapshot,
-                                                endUrl = result.url,
-                                                note = "includes_auth_redirects_and_callback"
-                                        )
+                                        trafficSnapshot?.let {
+                                                WebViewDebugTrafficTracker.finish(
+                                                        context = context,
+                                                        snapshot = it,
+                                                        endUrl = result.url,
+                                                        note = "includes_auth_redirects_and_callback"
+                                                )
+                                        }
                                         log("WebView completed with redirect: ${result.url}")
                                         // Forward as AuthApiResponse (internalCallback will handle unregister and delay)
                                         try {
@@ -334,16 +340,18 @@ internal class InternalService<T>() {
                                                 handleException(e, ErrorCode.GENERAL_ERROR)
                                         }
                                 } else {
-                                        WebViewDebugTrafficTracker.finish(
-                                                context = context,
-                                                snapshot = trafficSnapshot,
-                                                endUrl = result.url,
-                                                note = if (result.isCancelled) {
-                                                        "cancelled_before_callback"
-                                                } else {
-                                                        "webview_error_before_callback"
-                                                }
-                                        )
+                                        trafficSnapshot?.let {
+                                                WebViewDebugTrafficTracker.finish(
+                                                        context = context,
+                                                        snapshot = it,
+                                                        endUrl = result.url,
+                                                        note = if (result.isCancelled) {
+                                                                "cancelled_before_callback"
+                                                        } else {
+                                                                "webview_error_before_callback"
+                                                        }
+                                                )
+                                        }
                                         // Error or Cancel -> propagate as error
                                         val err = CellularException()
                                         err.sdkErrorCode = ErrorCode.GENERAL_ERROR

@@ -169,20 +169,23 @@ class CellularConnection<T>() {
 
     /** Builds an OkHttp request and includes custom headers only on the initial request. */
     private fun buildRequest(requestUri: String, isRedirect: Boolean): Request {
-        val transport = when {
-            network != null -> "cellular_okhttp"
-            configuration.bindAppToCellularNetwork -> "bound_okhttp"
-            else -> "okhttp"
-        }
-        val metricContext = DebugNetworkMetrics.createContext(
-            request = authRequest,
-            requestUrl = requestUri,
-            isRedirect = isRedirect,
-            transport = transport
-        )
         val builder = Request.Builder()
             .url(requestUri)
-            .tag(DebugMetricContext::class.java, metricContext)
+
+        if (configuration.debug) {
+            val transport = when {
+                network != null -> "cellular_okhttp"
+                configuration.bindAppToCellularNetwork -> "bound_okhttp"
+                else -> "okhttp"
+            }
+            val metricContext = DebugNetworkMetrics.createContext(
+                request = authRequest,
+                requestUrl = requestUri,
+                isRedirect = isRedirect,
+                transport = transport
+            )
+            builder.tag(DebugMetricContext::class.java, metricContext)
+        }
 
         if (!isRedirect) {
             authRequest.headers?.forEach { (name, value) -> builder.header(name, value) }

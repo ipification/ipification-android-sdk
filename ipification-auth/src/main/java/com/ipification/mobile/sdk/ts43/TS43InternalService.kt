@@ -52,18 +52,24 @@ internal class TS43InternalService(private val context: Context) {
     ) {
         val url = "${ipConfig.getTS43BackendUrl()}${ipConfig.TS43_AUTH_PATH}"
         val jsonBody = request.toJsonString()
-        val metricContext = DebugMetricContext(
-            sessionId = UUID.randomUUID().toString(),
-            stage = "ts43_auth",
-            transport = "okhttp",
-            url = url
-        )
+        val metricContext = if (debug) {
+            DebugMetricContext(
+                sessionId = UUID.randomUUID().toString(),
+                stage = "ts43_auth",
+                transport = "okhttp",
+                url = url
+            )
+        } else {
+            null
+        }
 
         onLog("========== TS43 AUTH REQUEST ==========")
         onLog("URL: $url")
         onLog("Method: POST")
-        onLog("Body bytes: ${DebugNetworkMetrics.utf8Size(jsonBody)}")
-        onLog("Request body:\n$jsonBody")
+        if (debug) {
+            onLog("Body bytes: ${DebugNetworkMetrics.utf8Size(jsonBody)}")
+            onLog("Request body:\n$jsonBody")
+        }
         onLog("Operation: ${request.operation.value}")
         onLog("========================================")
 
@@ -75,17 +81,19 @@ internal class TS43InternalService(private val context: Context) {
             .post(requestBody)
             .addHeader("Content-Type", CONTENT_TYPE_JSON)
             .build()
-        val requestHeadersBytes = httpRequest.headers.byteCount()
-        val requestBodyBytes = DebugNetworkMetrics.utf8Size(jsonBody)
+        val requestHeadersBytes = if (debug) httpRequest.headers.byteCount() else 0L
+        val requestBodyBytes = if (debug) DebugNetworkMetrics.utf8Size(jsonBody) else 0L
 
         client.newCall(httpRequest).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                DebugNetworkMetrics.logFailureMetric(
-                    context = metricContext,
-                    requestHeadersBytes = requestHeadersBytes,
-                    requestBodyBytes = requestBodyBytes,
-                    errorMessage = e.localizedMessage
-                )
+                metricContext?.let {
+                    DebugNetworkMetrics.logFailureMetric(
+                        context = it,
+                        requestHeadersBytes = requestHeadersBytes,
+                        requestBodyBytes = requestBodyBytes,
+                        errorMessage = e.localizedMessage
+                    )
+                }
                 onLog("========== TS43 AUTH ERROR ==========")
                 onLog("Error: ${e.message}")
                 onLog("=====================================")
@@ -96,19 +104,23 @@ internal class TS43InternalService(private val context: Context) {
                 response.use {
                     val responseBody = it.body?.string() ?: ""
                     val responseCode = it.code
-                    DebugNetworkMetrics.logHttpMetric(
-                        context = metricContext,
-                        requestHeadersBytes = requestHeadersBytes,
-                        requestBodyBytes = requestBodyBytes,
-                        responseHeadersBytes = it.headers.byteCount(),
-                        responseBodyBytes = DebugNetworkMetrics.utf8Size(responseBody),
-                        httpCode = responseCode
-                    )
+                    metricContext?.let { context ->
+                        DebugNetworkMetrics.logHttpMetric(
+                            context = context,
+                            requestHeadersBytes = requestHeadersBytes,
+                            requestBodyBytes = requestBodyBytes,
+                            responseHeadersBytes = it.headers.byteCount(),
+                            responseBodyBytes = DebugNetworkMetrics.utf8Size(responseBody),
+                            httpCode = responseCode
+                        )
+                    }
 
                     onLog("========== TS43 AUTH RESPONSE ==========")
                     onLog("Status Code: $responseCode")
-                    onLog("Response bytes: ${DebugNetworkMetrics.utf8Size(responseBody)}")
-                    onLog("Response body:\n$responseBody")
+                    if (debug) {
+                        onLog("Response bytes: ${DebugNetworkMetrics.utf8Size(responseBody)}")
+                        onLog("Response body:\n$responseBody")
+                    }
                     onLog("=========================================")
 
                     if (!it.isSuccessful) {
@@ -141,18 +153,24 @@ internal class TS43InternalService(private val context: Context) {
     ) {
         val url = "${ipConfig.getTS43BackendUrl()}${ipConfig.TS43_TOKEN_PATH}"
         val jsonBody = request.toJsonString()
-        val metricContext = DebugMetricContext(
-            sessionId = UUID.randomUUID().toString(),
-            stage = "ts43_token_exchange",
-            transport = "okhttp",
-            url = url
-        )
+        val metricContext = if (debug) {
+            DebugMetricContext(
+                sessionId = UUID.randomUUID().toString(),
+                stage = "ts43_token_exchange",
+                transport = "okhttp",
+                url = url
+            )
+        } else {
+            null
+        }
 
         onLog("========== TS43 TOKEN EXCHANGE REQUEST ==========")
         onLog("URL: $url")
         onLog("Method: POST")
-        onLog("Body bytes: ${DebugNetworkMetrics.utf8Size(jsonBody)}")
-        onLog("Request body:\n$jsonBody")
+        if (debug) {
+            onLog("Body bytes: ${DebugNetworkMetrics.utf8Size(jsonBody)}")
+            onLog("Request body:\n$jsonBody")
+        }
         onLog("=================================================")
 
         val client = createOkHttpClient()
@@ -163,17 +181,19 @@ internal class TS43InternalService(private val context: Context) {
             .post(requestBody)
             .addHeader("Content-Type", CONTENT_TYPE_JSON)
             .build()
-        val requestHeadersBytes = httpRequest.headers.byteCount()
-        val requestBodyBytes = DebugNetworkMetrics.utf8Size(jsonBody)
+        val requestHeadersBytes = if (debug) httpRequest.headers.byteCount() else 0L
+        val requestBodyBytes = if (debug) DebugNetworkMetrics.utf8Size(jsonBody) else 0L
 
         client.newCall(httpRequest).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                DebugNetworkMetrics.logFailureMetric(
-                    context = metricContext,
-                    requestHeadersBytes = requestHeadersBytes,
-                    requestBodyBytes = requestBodyBytes,
-                    errorMessage = e.localizedMessage
-                )
+                metricContext?.let {
+                    DebugNetworkMetrics.logFailureMetric(
+                        context = it,
+                        requestHeadersBytes = requestHeadersBytes,
+                        requestBodyBytes = requestBodyBytes,
+                        errorMessage = e.localizedMessage
+                    )
+                }
                 onLog("========== TS43 TOKEN EXCHANGE ERROR ==========")
                 onLog("Error: ${e.message}")
                 onLog("===============================================")
@@ -184,19 +204,23 @@ internal class TS43InternalService(private val context: Context) {
                 response.use {
                     val responseBody = it.body?.string() ?: ""
                     val responseCode = it.code
-                    DebugNetworkMetrics.logHttpMetric(
-                        context = metricContext,
-                        requestHeadersBytes = requestHeadersBytes,
-                        requestBodyBytes = requestBodyBytes,
-                        responseHeadersBytes = it.headers.byteCount(),
-                        responseBodyBytes = DebugNetworkMetrics.utf8Size(responseBody),
-                        httpCode = responseCode
-                    )
+                    metricContext?.let { context ->
+                        DebugNetworkMetrics.logHttpMetric(
+                            context = context,
+                            requestHeadersBytes = requestHeadersBytes,
+                            requestBodyBytes = requestBodyBytes,
+                            responseHeadersBytes = it.headers.byteCount(),
+                            responseBodyBytes = DebugNetworkMetrics.utf8Size(responseBody),
+                            httpCode = responseCode
+                        )
+                    }
 
                     onLog("========== TS43 TOKEN EXCHANGE RESPONSE ==========")
                     onLog("Status Code: $responseCode")
-                    onLog("Response bytes: ${DebugNetworkMetrics.utf8Size(responseBody)}")
-                    onLog("Response body:\n$responseBody")
+                    if (debug) {
+                        onLog("Response bytes: ${DebugNetworkMetrics.utf8Size(responseBody)}")
+                        onLog("Response body:\n$responseBody")
+                    }
                     onLog("==================================================")
 
                     if (!it.isSuccessful) {
