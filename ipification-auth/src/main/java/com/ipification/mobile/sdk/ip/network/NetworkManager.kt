@@ -282,6 +282,7 @@ internal class NetworkManager private constructor(context: Context) {
         val builder = NetworkRequest.Builder().apply {
             addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
             addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
         }
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

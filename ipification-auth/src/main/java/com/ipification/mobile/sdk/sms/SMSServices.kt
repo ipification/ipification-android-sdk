@@ -1,6 +1,10 @@
 package com.ipification.mobile.sdk.sms
 
 import android.app.Activity
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -139,6 +143,8 @@ class SMSServices {
             scope: String = "openid ip:phone_verify",
             callback: SMSCallback
         ) {
+            clearProcessNetworkBinding(activity)
+
             val config = IPConfiguration.getInstance()
             val loginHint = phoneNumber.filter(Char::isDigit)
             val finalScope = scope.ifBlank { config.SMS_SCOPE_VERIFY_PHONE }
@@ -267,6 +273,8 @@ class SMSServices {
             nonce: String,
             callback: SMSCallback
         ) {
+            clearProcessNetworkBinding(activity)
+
             val code = otpCode.trim()
             val requestId = authReqId.trim()
             val requestNonce = nonce.trim()
@@ -383,6 +391,46 @@ class SMSServices {
         @JvmStatic
         fun reset() {
             isRequestInProgress.set(false)
+        }
+
+        /**
+         * SMS backend calls should use the app's default internet path, not a prior IP cellular bind.
+         */
+        private fun clearProcessNetworkBinding(activity: Activity) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                return
+            }
+
+            runCatching {
+                val manager = activity.applicationContext
+                    .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                if (IPConfiguration.getInstance().debug) {
+                    onLog("SMS active network before clear bind: ${describeActiveNetwork(manager)}")
+                }
+                manager.bindProcessToNetwork(null)
+                onLog("Cleared process network binding before SMS request")
+            }.onFailure {
+                onLog("Failed to clear process network binding before SMS request: ${it.message}")
+            }
+        }
+
+        private fun describeActiveNetwork(manager: ConnectivityManager): String {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                @Suppress("DEPRECATION")
+                return "legacy=${manager.activeNetworkInfo}"
+            }
+
+            val network = manager.activeNetwork ?: return "network=null"
+            val capabilities = manager.getNetworkCapabilities(network) ?: return "network=$network capabilities=null"
+            val transports = buildList {
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) add("wifi")
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) add("ethernet")
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) add("cellular")
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) add("vpn")
+            }.ifEmpty { listOf("unknown") }.joinToString("|")
+            val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            val isValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            return "network=$network transports=$transports internet=$hasInternet validated=$isValidated"
         }
 
         /**

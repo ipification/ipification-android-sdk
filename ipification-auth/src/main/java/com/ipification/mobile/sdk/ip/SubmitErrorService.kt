@@ -128,6 +128,7 @@ class SubmitErrorService {
     private fun parseType(logData: String, errorCode: String?): String {
         val normalizedLogData = logData.lowercase()
         if ("interaction_required" in normalizedLogData) return "INTERACTION_REQUIRED"
+        if (isVpnPermissionError(normalizedLogData)) return "VPN"
         if ("failed to connect" in normalizedLogData) return "TIMEOUT"
         if ("cleartext" in normalizedLogData) return "CLEARTEXT"
 
@@ -143,11 +144,18 @@ class SubmitErrorService {
             sdkErrorCode in CREDENTIAL_MANAGER_ERROR_CODES -> "CREDENTIAL_MANAGER"
             sdkErrorCode in CONFIGURATION_ERROR_CODES -> "CONFIG"
             sdkErrorCode in TS43_ERROR_RANGE -> "TS43"
+            sdkErrorCode == ErrorCode.VPN_BLOCKS_CELLULAR_NETWORK -> "VPN"
             sdkErrorCode == ErrorCode.NETWORK_IS_NOT_ACTIVE ||
                 sdkErrorCode == LEGACY_NETWORK_ERROR_CODE -> "CELLULAR_NOT_ACTIVE"
             sdkErrorCode == ErrorCode.NETWORK_IS_UNAVAILABLE -> "CELLULAR_NETWORK_UNAVAILABLE"
             else -> "UNKNOWN"
         }
+    }
+
+    private fun isVpnPermissionError(normalizedLogData: String): Boolean {
+        return "binding socket to network" in normalizedLogData &&
+            "eperm" in normalizedLogData &&
+            "operation not permitted" in normalizedLogData
     }
 
     /** Removes separators and line breaks that could corrupt the report payload. */

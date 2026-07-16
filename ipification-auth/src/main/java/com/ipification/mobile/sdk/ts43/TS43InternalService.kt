@@ -1,6 +1,10 @@
 package com.ipification.mobile.sdk.ts43
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.util.Log
 import com.ipification.mobile.sdk.ip.IPConfiguration
 import com.ipification.mobile.sdk.ip.exception.IPificationError
@@ -16,12 +20,15 @@ import com.ipification.mobile.sdk.ip.utils.IPLogs
 import com.ipification.mobile.sdk.ip.utils.LogUtils
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
@@ -48,7 +55,8 @@ internal class TS43InternalService(private val context: Context) {
     fun performAuthRequest(
         request: TS43AuthRequest,
         onSuccess: (TS43AuthResponse) -> Unit,
-        onError: (Exception) -> Unit
+        onError: (Exception) -> Unit,
+        retryNetwork: Network? = null
     ) {
         val url = "${ipConfig.getTS43BackendUrl()}${ipConfig.TS43_AUTH_PATH}"
         val jsonBody = request.toJsonString()
@@ -56,7 +64,7 @@ internal class TS43InternalService(private val context: Context) {
             DebugMetricContext(
                 sessionId = UUID.randomUUID().toString(),
                 stage = "ts43_auth",
-                transport = "okhttp",
+                transport = if (retryNetwork != null) "okhttp_wifi_retry" else "okhttp",
                 url = url
             )
         } else {
@@ -73,7 +81,7 @@ internal class TS43InternalService(private val context: Context) {
         onLog("Operation: ${request.operation.value}")
         onLog("========================================")
 
-        val client = createOkHttpClient()
+        val client = createOkHttpClient(retryNetwork)
         val requestBody = jsonBody.toRequestBody(CONTENT_TYPE_JSON.toMediaType())
         
         val httpRequest = Request.Builder()
@@ -86,6 +94,19 @@ internal class TS43InternalService(private val context: Context) {
 
         client.newCall(httpRequest).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                if (retryNetwork == null && e.hasUnknownHostCause()) {
+                    onLog { "TS43 auth default-network DNS failed: ${e.message}" }
+                    val wifiNetwork = findWifiOrEthernetInternetNetwork()
+                    if (wifiNetwork != null) {
+                        onLog {
+                            "TS43 auth DNS failed; retrying through Wi-Fi/Ethernet network $wifiNetwork"
+                        }
+                        performAuthRequest(request, onSuccess, onError, wifiNetwork)
+                        return
+                    }
+                    onLog("TS43 auth DNS failed; no Wi-Fi/Ethernet internet network available for retry")
+                }
+
                 metricContext?.let {
                     DebugNetworkMetrics.logFailureMetric(
                         context = it,
@@ -149,7 +170,8 @@ internal class TS43InternalService(private val context: Context) {
     fun performTokenExchange(
         request: TS43TokenRequest,
         onSuccess: (TS43TokenResponse) -> Unit,
-        onError: (Exception) -> Unit
+        onError: (Exception) -> Unit,
+        retryNetwork: Network? = null
     ) {
         val url = "${ipConfig.getTS43BackendUrl()}${ipConfig.TS43_TOKEN_PATH}"
         val jsonBody = request.toJsonString()
@@ -157,7 +179,7 @@ internal class TS43InternalService(private val context: Context) {
             DebugMetricContext(
                 sessionId = UUID.randomUUID().toString(),
                 stage = "ts43_token_exchange",
-                transport = "okhttp",
+                transport = if (retryNetwork != null) "okhttp_wifi_retry" else "okhttp",
                 url = url
             )
         } else {
@@ -173,7 +195,7 @@ internal class TS43InternalService(private val context: Context) {
         }
         onLog("=================================================")
 
-        val client = createOkHttpClient()
+        val client = createOkHttpClient(retryNetwork)
         val requestBody = jsonBody.toRequestBody(CONTENT_TYPE_JSON.toMediaType())
 
         val httpRequest = Request.Builder()
@@ -186,6 +208,19 @@ internal class TS43InternalService(private val context: Context) {
 
         client.newCall(httpRequest).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                if (retryNetwork == null && e.hasUnknownHostCause()) {
+                    onLog { "TS43 token default-network DNS failed: ${e.message}" }
+                    val wifiNetwork = findWifiOrEthernetInternetNetwork()
+                    if (wifiNetwork != null) {
+                        onLog {
+                            "TS43 token DNS failed; retrying through Wi-Fi/Ethernet network $wifiNetwork"
+                        }
+                        performTokenExchange(request, onSuccess, onError, wifiNetwork)
+                        return
+                    }
+                    onLog("TS43 token DNS failed; no Wi-Fi/Ethernet internet network available for retry")
+                }
+
                 metricContext?.let {
                     DebugNetworkMetrics.logFailureMetric(
                         context = it,
@@ -370,12 +405,109 @@ internal class TS43InternalService(private val context: Context) {
     /**
      * Create configured OkHttpClient for TS43 requests.
      */
-    private fun createOkHttpClient(): OkHttpClient {
+    private fun createOkHttpClient(network: Network? = null): OkHttpClient {
         return OkHttpClient.Builder()
+            .apply {
+                if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    onLog { "TS43 OkHttp using explicit Wi-Fi/Ethernet network $network" }
+                    socketFactory(network.socketFactory)
+                    dns(NetworkBoundDns(network))
+                } else {
+                    onLog("TS43 OkHttp using default app network")
+                }
+            }
             .connectTimeout(ipConfig.AUTH_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS)
             .readTimeout(ipConfig.AUTH_READ_TIMEOUT, TimeUnit.MILLISECONDS)
             .writeTimeout(ipConfig.AUTH_READ_TIMEOUT, TimeUnit.MILLISECONDS)
             .build()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun findWifiOrEthernetInternetNetwork(): Network? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            onLog {
+                "TS43 Wi-Fi/Ethernet retry skipped: API ${Build.VERSION.SDK_INT} has no Network socketFactory"
+            }
+            return null
+        }
+
+        val manager = context.applicationContext
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val networks = manager.allNetworks
+        onLog { "TS43 scanning ${networks.size} network(s) for Wi-Fi/Ethernet retry" }
+        return networks
+            .mapNotNull { network ->
+                val capabilities = manager.getNetworkCapabilities(network)
+                if (capabilities == null) {
+                    onLog { "TS43 retry candidate $network skipped: capabilities=null" }
+                    return@mapNotNull null
+                }
+                val hasAllowedTransport =
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                if (!hasAllowedTransport ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
+                    !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                    onLog {
+                        "TS43 retry candidate $network skipped: ${describeCapabilities(capabilities)}"
+                    }
+                    return@mapNotNull null
+                }
+                onLog {
+                    "TS43 retry candidate $network accepted: ${describeCapabilities(capabilities)}"
+                }
+                network to capabilities
+            }
+            .sortedByDescending {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    it.second.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                } else {
+                    true
+                }
+            }
+            .firstOrNull()
+            ?.first
+            .also { selected ->
+                onLog { "TS43 selected Wi-Fi/Ethernet retry network: ${selected ?: "none"}" }
+            }
+    }
+
+    private fun describeCapabilities(capabilities: NetworkCapabilities): String {
+        val transports = buildList {
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) add("wifi")
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) add("ethernet")
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) add("cellular")
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) add("vpn")
+        }.ifEmpty { listOf("unknown") }.joinToString("|")
+        val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val isValidated = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        } else {
+            false
+        }
+        return "transports=$transports internet=$hasInternet validated=$isValidated"
+    }
+
+    private fun IOException.hasUnknownHostCause(): Boolean {
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is UnknownHostException) return true
+            current = current.cause
+        }
+        return false
+    }
+
+    private class NetworkBoundDns(private val network: Network) : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            if (hostname.isBlank()) {
+                throw UnknownHostException("Hostname is empty")
+            }
+            return network.getAllByName(hostname).toList().ifEmpty {
+                throw UnknownHostException("No addresses found for $hostname")
+            }
+        }
     }
 
     /**
@@ -399,6 +531,12 @@ internal class TS43InternalService(private val context: Context) {
         if (debug) {
             Log.d(TAG, message)
             IPLogs.getInstance().LOG += "${LogUtils.currentTimestamp()} - $TAG - $message\n"
+        }
+    }
+
+    private inline fun onLog(message: () -> String) {
+        if (debug) {
+            onLog(message())
         }
     }
 }

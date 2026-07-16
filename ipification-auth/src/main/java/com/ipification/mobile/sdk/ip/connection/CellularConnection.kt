@@ -21,6 +21,7 @@ import com.ipification.mobile.sdk.ip.response.CoverageResponse
 import com.ipification.mobile.sdk.ip.utils.DebugMetricContext
 import com.ipification.mobile.sdk.ip.utils.DebugNetworkMetrics
 import com.ipification.mobile.sdk.ip.utils.ErrorCode
+import com.ipification.mobile.sdk.ip.utils.ErrorMessages
 import com.ipification.mobile.sdk.ip.utils.IPLogs
 import com.ipification.mobile.sdk.ip.utils.LogUtils
 import com.ipification.mobile.sdk.ip.utils.PrintingEventListener
@@ -253,6 +254,19 @@ class CellularConnection<T>() {
             return
         }
 
+        if (exception.isVpnBlockedCellularBindFailure()) {
+            log("Not retrying because VPN policy blocked cellular socket binding")
+            deliverError(
+                CellularException().apply {
+                    errorDescription =
+                        "${ErrorMessages.VPN_BLOCKS_CELLULAR_NETWORK} Turn off VPN or allow the app to bypass VPN for IP flow."
+                    sdkErrorCode = ErrorCode.VPN_BLOCKS_CELLULAR_NETWORK
+                    this.exception = exception
+                }
+            )
+            return
+        }
+
         if (retryCount < maxRetries) {
             log("Retrying... (${retryCount + 1}/$maxRetries)")
             if (network != null && exception.hasUnknownHostCause()) {
@@ -286,6 +300,20 @@ class CellularConnection<T>() {
         var current: Throwable? = this
         while (current != null) {
             if (current is UnknownHostException) return true
+            current = current.cause
+        }
+        return false
+    }
+
+    /** Detects Android VPN lockdown/bypass denial for network-scoped cellular sockets. */
+    private fun IOException.isVpnBlockedCellularBindFailure(): Boolean {
+        var current: Throwable? = this
+        while (current != null) {
+            val message = current.message.orEmpty()
+            if (message.contains(SOCKET_BINDING_ERROR, ignoreCase = true) &&
+                message.contains(EPERM_ERROR, ignoreCase = true)) {
+                return true
+            }
             current = current.cause
         }
         return false
@@ -434,6 +462,8 @@ class CellularConnection<T>() {
         const val LOG_TAG = "CellularConnection"
         const val LOCATION_HEADER = "Location"
         const val CLEARTEXT_ERROR = "CLEARTEXT"
+        const val SOCKET_BINDING_ERROR = "Binding socket to network"
+        const val EPERM_ERROR = "EPERM"
         const val DEFAULT_RETRY_DELAY_MS = 1_000L
         const val RETRY_TIMEOUT_MS = 5_000L
         val REDIRECT_RESPONSE_CODES = 300..310

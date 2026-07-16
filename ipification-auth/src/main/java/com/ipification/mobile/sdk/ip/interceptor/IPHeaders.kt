@@ -65,6 +65,12 @@ internal object IPHeaders {
     /** Whether Wi-Fi is enabled. */
     const val WIFI_ENABLED = "wifi"
 
+    /** Whether the active network is a VPN. */
+    const val VPN_ENABLED = "vpn"
+
+    /** Whether the active cellular network is roaming. */
+    const val ROAMING = "roaming"
+
     /** SIM slot currently used for cellular data. Value is `1` or `2`. */
     const val ACTIVE_DATA_SIM = "active-data-session-sim"
 

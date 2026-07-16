@@ -3,7 +3,10 @@
 package com.ipification.mobile.sdk.ts43
 
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -208,6 +211,8 @@ class TS43Services {
             request: TS43AuthRequest,
             callback: TS43Callback
         ) {
+            clearProcessNetworkBinding(activity)
+
             // Check if Credential Manager dependencies are available
             if (!isCredentialManagerAvailable()) {
                 val error = IPificationError().apply {
@@ -619,6 +624,47 @@ class TS43Services {
         @JvmStatic
         fun reset() {
             isRequestInProgress.set(false)
+        }
+
+        /**
+         * TS43 backend calls use the default app network. A previous IP flow may leave the
+         * process bound to cellular after VPN/socket failures, which can poison TS43 DNS.
+         */
+        private fun clearProcessNetworkBinding(activity: Activity) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                return
+            }
+
+            runCatching {
+                val manager = activity.applicationContext
+                    .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                if (IPConfiguration.getInstance().debug) {
+                    onLog("TS43 active network before clear bind: ${describeActiveNetwork(manager)}")
+                }
+                manager.bindProcessToNetwork(null)
+                onLog("Cleared process network binding before TS43 request")
+            }.onFailure {
+                onLog("Failed to clear process network binding before TS43 request: ${it.message}")
+            }
+        }
+
+        private fun describeActiveNetwork(manager: ConnectivityManager): String {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                @Suppress("DEPRECATION")
+                return "legacy=${manager.activeNetworkInfo}"
+            }
+
+            val network = manager.activeNetwork ?: return "network=null"
+            val capabilities = manager.getNetworkCapabilities(network) ?: return "network=$network capabilities=null"
+            val transports = buildList {
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) add("wifi")
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) add("ethernet")
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) add("cellular")
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) add("vpn")
+            }.ifEmpty { listOf("unknown") }.joinToString("|")
+            val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            val isValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            return "network=$network transports=$transports internet=$hasInternet validated=$isValidated"
         }
 
         /**

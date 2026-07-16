@@ -56,6 +56,8 @@ class SdkLogInterceptor(context: Context) : Interceptor {
             .addHeader(IPHeaders.SIM_1_ERROR_MESSAGE, sim1.getErrorMessage())
             .addHeader(IPHeaders.DUAL_SIM, if (isDualSim) "yes" else "no")
             .addHeader(IPHeaders.WIFI_ENABLED, if (NetworkUtils.isWifiEnabled(context)) "yes" else "no")
+            .addHeader(IPHeaders.VPN_ENABLED, if (NetworkUtils.isVpnEnabled(context)) "yes" else "no")
+            .addHeader(IPHeaders.ROAMING, if (NetworkUtils.isRoaming(context)) "yes" else "no")
 
         if (!isDualSim) {
             requestBuilder.addHeader(IPHeaders.ACTIVE_DATA_SIM, "1")

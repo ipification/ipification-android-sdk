@@ -312,15 +312,6 @@ internal class InternalService<T>() {
                         }
                         // Register bridge listener BEFORE starting activity
                         WebViewAuthBridge.setListener { result ->
-                                // Unbind process from network to avoid leaks
-                                runCatching { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                            manager.bindProcessToNetwork(null)
-                                        } else {
-
-                                        }
-                                }
-                                .onFailure { Log.e(TAG, "unbind after webview end failed", it) }
-
                                 if (result.isSuccess && result.url != null) {
                                         trafficSnapshot?.let {
                                                 WebViewDebugTrafficTracker.finish(
@@ -578,6 +569,7 @@ internal class InternalService<T>() {
                         // Try IM flow if applicable
                         if (supportsImFallback && !hasTriedImFallback && imFallbackRequest != null) {
                                 hasTriedImFallback = true
+                                releaseProcessNetworkBinding()
                                 performIMRequest(requireNotNull(imFallbackRequest))
                                 return
                         }
@@ -699,14 +691,17 @@ internal class InternalService<T>() {
         }
 
         private fun finishSuccess(response: T) {
+                releaseProcessNetworkBinding()
                 takeFinalCallback()?.onSuccess(response)
         }
 
         private fun finishError(error: CellularException) {
+                releaseProcessNetworkBinding()
                 takeFinalCallback()?.onError(error)
         }
 
         private fun finishCancel() {
+                releaseProcessNetworkBinding()
                 takeFinalCallback()?.onIMCancel()
         }
 
@@ -715,6 +710,7 @@ internal class InternalService<T>() {
                 action: (CellularCallback<T>) -> Unit
         ) {
                 val callback = takeFinalCallback() ?: return
+                releaseProcessNetworkBinding()
                 runWithUnregisterDelay(context, autoUnregisterNetwork, timeoutMs) {
                         action(callback)
                 }
@@ -735,13 +731,6 @@ internal class InternalService<T>() {
         ) {
                 // Always use the applicationContext to avoid holding onto an Activity
                 val appCtx = context.applicationContext
-                if (IPConfiguration.getInstance().bindAppToCellularNetwork) {
-                        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        log("unbindProcessToNetwork")
-                        manager.bindProcessToNetwork(null)
-                    }
-                }
                 if (autoUnregister) {
                         // 1) Safely unregister (won’t throw)
                         runCatching {
@@ -767,6 +756,23 @@ internal class InternalService<T>() {
                         }.onFailure {
                                 Log.e(TAG, "Immediate action failed", it)
                         }
+                }
+        }
+
+        /** Clears process-wide cellular binding before leaving cellular-only request paths. */
+        private fun releaseProcessNetworkBinding() {
+                if (!IPConfiguration.getInstance().bindAppToCellularNetwork ||
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                        return
+                }
+
+                runCatching {
+                        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                        log("unbindProcessToNetwork")
+                        manager.bindProcessToNetwork(null)
+                }.onFailure {
+                        Log.e(TAG, "unbindProcessToNetwork failed", it)
+                        log("unbindProcessToNetwork failed ${it.message}")
                 }
         }
 

@@ -17,6 +17,7 @@ object ErrorCode {
     const val EMPTY_AUTH_ENDPOINT = 1009
     const val NETWORK_IS_UNAVAILABLE = 1010
     const val SIM_IS_UNAVAILABLE = 1011
+    const val VPN_BLOCKS_CELLULAR_NETWORK = 1012
 
     // IM errors
     const val EMPTY_IM_HEADER = 2001
@@ -48,6 +49,8 @@ object ErrorMessages {
     const val NETWORK_ERROR = "Failed to force to cellular network."
     const val NETWORK_TIMEOUT_ERROR = "Failed to force to cellular network. Timeout error."
     const val NETWORK_ERROR_REQUEST = "Failed to force to cellular network. Request error."
+    const val VPN_BLOCKS_CELLULAR_NETWORK =
+        "VPN policy blocked the SDK from opening a direct cellular socket."
 
     // Request validation errors
     const val EMPTY_CLIENT_ID =
