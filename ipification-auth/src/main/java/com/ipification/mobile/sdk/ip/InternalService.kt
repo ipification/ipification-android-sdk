@@ -569,7 +569,7 @@ internal class InternalService<T>() {
                         // Try IM flow if applicable
                         if (supportsImFallback && !hasTriedImFallback && imFallbackRequest != null) {
                                 hasTriedImFallback = true
-                                releaseProcessNetworkBinding()
+                                unregisterNetwork(context)
                                 performIMRequest(requireNotNull(imFallbackRequest))
                                 return
                         }
@@ -691,17 +691,14 @@ internal class InternalService<T>() {
         }
 
         private fun finishSuccess(response: T) {
-                releaseProcessNetworkBinding()
                 takeFinalCallback()?.onSuccess(response)
         }
 
         private fun finishError(error: CellularException) {
-                releaseProcessNetworkBinding()
                 takeFinalCallback()?.onError(error)
         }
 
         private fun finishCancel() {
-                releaseProcessNetworkBinding()
                 takeFinalCallback()?.onIMCancel()
         }
 
@@ -710,7 +707,6 @@ internal class InternalService<T>() {
                 action: (CellularCallback<T>) -> Unit
         ) {
                 val callback = takeFinalCallback() ?: return
-                releaseProcessNetworkBinding()
                 runWithUnregisterDelay(context, autoUnregisterNetwork, timeoutMs) {
                         action(callback)
                 }
@@ -760,21 +756,21 @@ internal class InternalService<T>() {
         }
 
         /** Clears process-wide cellular binding before leaving cellular-only request paths. */
-        private fun releaseProcessNetworkBinding() {
-                if (!IPConfiguration.getInstance().bindAppToCellularNetwork ||
-                        Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-                        return
-                }
-
-                runCatching {
-                        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                        log("unbindProcessToNetwork")
-                        manager.bindProcessToNetwork(null)
-                }.onFailure {
-                        Log.e(TAG, "unbindProcessToNetwork failed", it)
-                        log("unbindProcessToNetwork failed ${it.message}")
-                }
-        }
+//        private fun releaseProcessNetworkBinding() {
+//                if (!IPConfiguration.getInstance().bindAppToCellularNetwork ||
+//                        Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+//                        return
+//                }
+//
+//                runCatching {
+//                        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+//                        log("unbindProcessToNetwork")
+//                        manager.bindProcessToNetwork(null)
+//                }.onFailure {
+//                        Log.e(TAG, "unbindProcessToNetwork failed", it)
+//                        log("unbindProcessToNetwork failed ${it.message}")
+//                }
+//        }
 
         /*
         * handle UnAvailable cases

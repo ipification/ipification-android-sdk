@@ -23,6 +23,7 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.ipification.mobile.sdk.ip.IPConfiguration
 import com.ipification.mobile.sdk.ip.SubmitErrorService
 import com.ipification.mobile.sdk.ip.exception.IPificationError
+import com.ipification.mobile.sdk.ip.network.NetworkManager
 import com.ipification.mobile.sdk.ts43.callback.TS43Callback
 import com.ipification.mobile.sdk.ts43.exception.TS43ErrorCode
 import com.ipification.mobile.sdk.ts43.exception.TS43ErrorMessage
@@ -641,7 +642,8 @@ class TS43Services {
                 if (IPConfiguration.getInstance().debug) {
                     onLog("TS43 active network before clear bind: ${describeActiveNetwork(manager)}")
                 }
-                manager.bindProcessToNetwork(null)
+                NetworkManager.getInstance(activity.applicationContext).unregister()
+
                 onLog("Cleared process network binding before TS43 request")
             }.onFailure {
                 onLog("Failed to clear process network binding before TS43 request: ${it.message}")

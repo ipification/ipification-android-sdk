@@ -43,7 +43,7 @@ internal class NetworkManager private constructor(context: Context) {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     @Volatile
-    private var activeNetwork: Network? = null
+    internal var activeNetwork: Network? = null
 
     // A connect operation must deliver only one success or error result.
     private val hasDeliveredResult = AtomicBoolean(false)
@@ -377,6 +377,13 @@ internal class NetworkManager private constructor(context: Context) {
         if (shouldAttemptSystemUnregister) {
             try {
                 manager.unregisterNetworkCallback(callback)
+                // A forced IP flow may bind the whole process to cellular independently of
+                // this callback.
+                if (IPConfiguration.getInstance().bindAppToCellularNetwork) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        manager.bindProcessToNetwork(null)
+                    }
+                }
                 Log.i(LOG_TAG, "Successfully called system unregisterNetworkCallback${if (onlyAffectedBrands) " (for specific brand)" else ""}")
                 log("System unregisterNetworkCallback called successfully.")
                 unregistrationCallSuccess = true
