@@ -1,3 +1,5 @@
+# IPification Android SDK Document
+https://developer.ipification.com/#/android/latest/
 # IPification Android SDK Public Demo
 
 This repository contains the IPification Android SDK module and a stage sample app that shows clients how to integrate the SDK flows from an Android application.
@@ -13,7 +15,7 @@ It does not download the SDK from Maven or any external package source.
 When the SDK is published, client apps should use this Maven coordinate:
 
 ```gradle
-implementation "com.ipification.android:ipification-sdk:2.2.4"
+implementation "com.ipification.android:ipification-sdk:2.2.5"
 ```
 
 ## Project Structure
@@ -34,7 +36,7 @@ implementation "com.ipification.android:ipification-sdk:2.2.4"
 The SDK library module publishes the release artifact:
 
 ```text
-com.ipification.android:ipification-sdk:2.2.4
+com.ipification.android:ipification-sdk:2.2.5
 ```
 
 ## Build The Demo
