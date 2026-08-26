@@ -230,7 +230,6 @@ class DeviceUtils private constructor(context: Context) {
             .appendLine("WIFI: ${enabledState(NetworkUtils.isWifiEnabled(context))}")
             .appendLine("VPN: ${enabledState(NetworkUtils.isVpnEnabled(context))}")
             .appendLine("ROAMING: ${enabledState(NetworkUtils.isRoaming(context))}")
-            .appendLine("CELLULAR_IP: ${configuration.CELLULAR_PRIVATE_IP}")
             .appendLine("-------------------------------------")
             .appendLine("DEVICE NAME: ${Build.MANUFACTURER} - ${Build.MODEL}")
             .appendLine("OS VERSION: ${Build.VERSION.RELEASE} - ${Build.VERSION.SDK_INT}")
