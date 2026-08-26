@@ -399,8 +399,7 @@ internal class InternalService<T>() {
                         return
                 }
                 if (!NetworkUtils.isWifiEnabled(context)) {
-                        IPConfiguration.getInstance().TIMEOUT_RELEASE_NETWORK = 100L
-                        log("WIFI IS NOT ENABLED")
+                        log("WIFI IS NOT CONNECTED")
                         NetworkUtils.checkPrivateIP(context, null)
                         if (!NetworkUtils.hasInternet(context)){
                                 log("no Internet")
@@ -413,13 +412,21 @@ internal class InternalService<T>() {
                                 }else{
                                         log("Cellular connected")
                                 }
+                                IPConfiguration.getInstance().TIMEOUT_RELEASE_NETWORK = 100L
                                 Log.e("InternalService", "cellular is on but no Internet, forcing cellular and wait for internet is ready")
                                 forceCellularConnection(request, false, "cellular is on but no Internet, forcing cellular and wait for internet is ready")
                                 return
                         }else{
-                                log("Internet is active")
+                                log("Internet is active; using the default cellular network")
                         }
-                        forceCellularConnection(request, false, "wifi disabled")
+                        handleConnection(
+                                isWifiEnabled = false,
+                                network = null,
+                                request = request,
+                                bindAppToCellularNetwork = IPConfiguration.getInstance().bindAppToCellularNetwork,
+                                useWebViewInsteadOfApi = IPConfiguration.getInstance().useWebViewInsteadOfApi,
+                                callback = internalCallback
+                        )
                         return
                 }else{
                         log("WIFI IS ENABLED")
