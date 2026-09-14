@@ -962,28 +962,36 @@ IPificationServices.startAuthentication(
 
 #### 3.2.1 Custom parameters for your SMS backend
 
-If your `/sms/auth` or `/sms/token` contract needs partner-specific values (for example a tenant or routing id), declare them on the SMS channel. `addAuthParam` values are added to the `/sms/auth` body; `addTokenParam` values and headers are captured in the `SMSAuthResponse` and reused automatically by `verifySMSOTP()`.
+All SMS custom values are optional. Add them only when your `/sms/auth` or `/sms/token` contract requires partner-specific fields.
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| SMS auth params | Optional | Sent in the `/sms/auth` body. Add only when required by your backend auth contract. |
+| SMS token params | Optional | Sent in the `/sms/token` body. Captured in the `SMSAuthResponse` and reused automatically by `verifySMSOTP()`. |
+| SMS headers | Optional | Added to both SMS backend requests. |
 
 <!-- tabs:start -->
 
 #### **Kotlin**
 
 ```kotlin
+// Optional, only if required by your backend:
 authRequestBuilder.sms {
-  addAuthParam("server_id", serverId)   // -> /sms/auth body
-  addTokenParam("server_id", serverId)  // -> /sms/token body
-  addHeader("X-Tenant", tenantId)       // -> both requests
+  addAuthParam("custom_auth_param", "value")    // -> /sms/auth body
+  addTokenParam("custom_token_param", "value")  // -> /sms/token body
+  addHeader("X-Custom-Header", "value")         // -> both requests
 }
 ```
 
 #### **Java**
 
 ```java
+// Optional, only if required by your backend:
 authRequestBuilder.setSMSOptions(
   new SMSChannelOptions.Builder()
-    .addAuthParam("server_id", serverId)
-    .addTokenParam("server_id", serverId)
-    .addHeader("X-Tenant", tenantId)
+    .addAuthParam("custom_auth_param", "value")    // -> /sms/auth body
+    .addTokenParam("custom_token_param", "value")  // -> /sms/token body
+    .addHeader("X-Custom-Header", "value")         // -> both requests
     .build()
 );
 ```
@@ -1245,6 +1253,8 @@ Each channel talks to a different backend contract, so partner-specific values a
 | `ts43 { ... }` / `setTS43Options` | `/ts43/auth` body | `/ts43/token` body | both TS43 requests |
 | `sms { ... }` / `setSMSOptions` | `/sms/auth` body | `/sms/token` body (reused automatically by `verifySMSOTP`) | both SMS requests |
 
+All channel options are optional. Configure a channel only when the backend behind that channel requires extra fields; a channel with no options behaves exactly as before.
+
 Keys owned by the SDK (`client_id`, `login_hint`, `scope`, `code`, `auth_req_id`, `nonce`, `vp_token`, ...) are reserved: adding one throws `IllegalArgumentException` so the mistake is caught during development. Options configured for a channel that is not in `AUTH_CHANNELS` are ignored (a debug log line is written).
 
 <!-- tabs:start -->
@@ -1255,45 +1265,48 @@ Keys owned by the SDK (`client_id`, `login_hint`, `scope`, `code`, `auth_req_id`
 val authRequest = AuthRequest.Builder()
   .setScope("openid ip:phone_verify")
   .addQueryParam("login_hint", country_code + user_input_phone_number)
+  // Optional, only if required by your backend:
   .ts43 {
-    addAuthParam("server_id", serverId)
-    addTokenParam("server_id", serverId)
-    setScope("openid ip:phone")            // optional TS43-only scope override
+    addAuthParam("custom_auth_param", "value")    // -> /ts43/auth body
+    addTokenParam("custom_token_param", "value")  // -> /ts43/token body
+    setScope("openid ip:phone")                   // optional TS43-only scope override
   }
   .ip {
-    addAuthParam("consent_id", consentId)  // IP authorization request only
-    addTokenParam("server_id", serverId)   // IP_TOKEN_URL body only
+    addAuthParam("custom_auth_param", "value")    // -> IP authorization request query string
+    addTokenParam("custom_token_param", "value")  // -> IP_TOKEN_URL body
   }
   .sms {
-    addAuthParam("server_id", serverId)
-    addAuthParam("locale", "vi")
-    addTokenParam("server_id", serverId)
+    addAuthParam("custom_auth_param", "value")    // -> /sms/auth body
+    addTokenParam("custom_token_param", "value")  // -> /sms/token body
   }
   .build()
 
 // Same value for every channel? Say so explicitly:
-// .forAllChannels { addAuthParam("server_id", serverId) }
+// .forAllChannels { addAuthParam("custom_auth_param", "value") }
 ```
 
 #### **Java**
 
 ```java
-AuthRequest authRequest = new AuthRequest.Builder()
-  .setScope("openid ip:phone_verify")
-  .setTS43Options(new TS43ChannelOptions.Builder()
-    .addAuthParam("server_id", serverId)
-    .addTokenParam("server_id", serverId)
-    .build())
-  .setIPOptions(new IPChannelOptions.Builder()
-    .addAuthParam("consent_id", consentId)
-    .addTokenParam("server_id", serverId)
-    .build())
-  .setSMSOptions(new SMSChannelOptions.Builder()
-    .addAuthParam("server_id", serverId)
-    .addTokenParam("server_id", serverId)
-    .build())
-  .build();
-// Then call addQueryParam("login_hint", ...) on the builder before build(), as in the examples above.
+AuthRequest.Builder authRequestBuilder = new AuthRequest.Builder();
+authRequestBuilder.setScope("openid ip:phone_verify");
+authRequestBuilder.addQueryParam("login_hint", country_code + user_input_phone_number);
+
+// Optional, only if required by your backend:
+authRequestBuilder.setTS43Options(new TS43ChannelOptions.Builder()
+    .addAuthParam("custom_auth_param", "value")    // -> /ts43/auth body
+    .addTokenParam("custom_token_param", "value")  // -> /ts43/token body
+    .build());
+authRequestBuilder.setIPOptions(new IPChannelOptions.Builder()
+    .addAuthParam("custom_auth_param", "value")    // -> IP authorization request query string
+    .addTokenParam("custom_token_param", "value")  // -> IP_TOKEN_URL body
+    .build());
+authRequestBuilder.setSMSOptions(new SMSChannelOptions.Builder()
+    .addAuthParam("custom_auth_param", "value")    // -> /sms/auth body
+    .addTokenParam("custom_token_param", "value")  // -> /sms/token body
+    .build());
+
+AuthRequest authRequest = authRequestBuilder.build();
 ```
 
 <!-- tabs:end -->

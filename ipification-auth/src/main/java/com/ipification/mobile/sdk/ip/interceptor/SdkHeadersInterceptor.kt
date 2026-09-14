@@ -9,6 +9,7 @@ import com.ipification.mobile.sdk.ip.utils.DeviceUtils
 import com.ipification.mobile.sdk.ip.utils.IPLogs
 import com.ipification.mobile.sdk.ip.utils.LogUtils
 import com.ipification.mobile.sdk.ip.utils.NetworkUtils
+import com.ipification.mobile.sdk.ip.utils.RootUtils
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -56,6 +57,7 @@ class SdkHeadersInterceptor(
             .addHeader(IPHeaders.DEVICE_NAME, "${Build.MANUFACTURER} - ${Build.MODEL}")
             .addHeader(IPHeaders.OS_VERSION, Build.VERSION.RELEASE)
             .addHeader(IPHeaders.OS_API_LEVEL, Build.VERSION.SDK_INT.toString())
+            .addHeader(IPHeaders.ROOTED, RootUtils.rootedHeaderValue())
 
         if (includeCarrierHeaders) {
             addCarrierHeaders(requestBuilder)
