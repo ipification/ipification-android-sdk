@@ -743,8 +743,11 @@ Use these request parameters for TS43 authentication:
 | --- | --- | --- |
 | `login_hint` | Yes | User phone number for phone number verification. |
 | `scope` | Optional | Defaults to `openid ip:phone_verify` if not overridden. |
-| Custom auth params | Optional | Add only when required by your backend auth contract. |
-| Custom token params | Optional | Add only when required by your backend token contract. |
+| TS43 auth params | Optional | Sent in the `/ts43/auth` body. Add only when required by your backend auth contract. |
+| TS43 token params | Optional | Sent in the `/ts43/token` body. Add only when required by your backend token contract. |
+| TS43 headers | Optional | Added to both TS43 backend requests. |
+
+Custom values are declared per channel with `ts43 { ... }` (Kotlin) or `setTS43Options(...)` (Java). They are never sent to the IP or SMS channels.
 
 <!-- tabs:start -->
 
@@ -755,8 +758,11 @@ authRequestBuilder.addQueryParam("login_hint", country_code + user_input_phone_n
 authRequestBuilder.setScope("openid ip:phone_verify")
 
 // Optional, only if required by your backend:
-authRequestBuilder.addQueryParam("custom_auth_param", "value")
-authRequestBuilder.addTS43TokenCustomParam("custom_token_param", "value")
+authRequestBuilder.ts43 {
+  addAuthParam("custom_auth_param", "value")    // -> /ts43/auth body
+  addTokenParam("custom_token_param", "value")  // -> /ts43/token body
+  addHeader("X-Custom-Header", "value")         // -> both requests
+}
 ```
 
 #### **Java**
@@ -766,11 +772,18 @@ authRequestBuilder.addQueryParam("login_hint", country_code + user_input_phone_n
 authRequestBuilder.setScope("openid ip:phone_verify");
 
 // Optional, only if required by your backend:
-authRequestBuilder.addQueryParam("custom_auth_param", "value");
-authRequestBuilder.addTS43TokenCustomParam("custom_token_param", "value");
+authRequestBuilder.setTS43Options(
+  new TS43ChannelOptions.Builder()
+    .addAuthParam("custom_auth_param", "value")    // -> /ts43/auth body
+    .addTokenParam("custom_token_param", "value")  // -> /ts43/token body
+    .addHeader("X-Custom-Header", "value")         // -> both requests
+    .build()
+);
 ```
 
 <!-- tabs:end -->
+
+> `addQueryParam(...)` only affects the IP authorization request; it is never forwarded to the TS43 backend. `addTS43TokenCustomParam(...)` still compiles but is deprecated in favour of `ts43 { addTokenParam(...) }`.
 
 #### 2.4 Optional Helper APIs
 
@@ -898,9 +911,8 @@ IPificationServices.startAuthentication(
     }
 
     override fun onOTPRequired(response: SMSAuthResponse) {
-      // OTP was sent. Save these values and show your OTP input UI.
-      val authReqId = response.authReqId
-      val nonce = response.nonce
+      // OTP was sent. Keep this response and show your OTP input UI.
+      savedSmsSession = response
     }
 
     override fun onError(error: IPificationError) {
@@ -934,9 +946,8 @@ IPificationServices.startAuthentication(
 
     @Override
     public void onOTPRequired(@NonNull SMSAuthResponse response) {
-      // OTP was sent. Save these values and show your OTP input UI.
-      String authReqId = response.getAuthReqId();
-      String nonce = response.getNonce();
+      // OTP was sent. Keep this response and show your OTP input UI.
+      savedSmsSession = response;
     }
 
     @Override
@@ -949,9 +960,41 @@ IPificationServices.startAuthentication(
 
 <!-- tabs:end -->
 
+#### 3.2.1 Custom parameters for your SMS backend
+
+If your `/sms/auth` or `/sms/token` contract needs partner-specific values (for example a tenant or routing id), declare them on the SMS channel. `addAuthParam` values are added to the `/sms/auth` body; `addTokenParam` values and headers are captured in the `SMSAuthResponse` and reused automatically by `verifySMSOTP()`.
+
+<!-- tabs:start -->
+
+#### **Kotlin**
+
+```kotlin
+authRequestBuilder.sms {
+  addAuthParam("server_id", serverId)   // -> /sms/auth body
+  addTokenParam("server_id", serverId)  // -> /sms/token body
+  addHeader("X-Tenant", tenantId)       // -> both requests
+}
+```
+
+#### **Java**
+
+```java
+authRequestBuilder.setSMSOptions(
+  new SMSChannelOptions.Builder()
+    .addAuthParam("server_id", serverId)
+    .addTokenParam("server_id", serverId)
+    .addHeader("X-Tenant", tenantId)
+    .build()
+);
+```
+
+<!-- tabs:end -->
+
 #### 3.3 Verify OTP
 
-After `onOTPRequired()`, pass the saved `authReqId`, `nonce`, and user-entered OTP to `verifySMSOTP()`. The SDK calls your configured `SMS_TOKEN_PATH` endpoint and returns the final `SMSTokenResponse`.
+After `onOTPRequired()`, pass the saved `SMSAuthResponse` and the user-entered OTP to `verifySMSOTP()`. The response already carries `authReqId`, `nonce` and any SMS token params/headers, so nothing has to be re-supplied. The SDK calls your configured `SMS_TOKEN_PATH` endpoint and returns the final `SMSTokenResponse`.
+
+The previous overload `verifySMSOTP(activity, otpCode, authReqId, nonce, callback)` is still available when you only persist the two strings.
 
 <!-- tabs:start -->
 
@@ -961,8 +1004,7 @@ After `onOTPRequired()`, pass the saved `authReqId`, `nonce`, and user-entered O
 IPificationServices.verifySMSOTP(
   activity = this,
   otpCode = user_entered_otp_code,
-  authReqId = saved_auth_req_id,
-  nonce = saved_nonce,
+  session = savedSmsSession,   // SMSAuthResponse from onOTPRequired()
   callback = object : SMSCallback {
     override fun onAuthInitiated(response: SMSAuthResponse) {
       // Required by SMSCallback, but verifySMSOTP() does not call this method.
@@ -992,8 +1034,7 @@ IPificationServices.verifySMSOTP(
 IPificationServices.verifySMSOTP(
   this,
   user_entered_otp_code,
-  saved_auth_req_id,
-  saved_nonce,
+  savedSmsSession,   // SMSAuthResponse from onOTPRequired()
   new SMSCallback() {
     @Override
     public void onAuthInitiated(@NonNull SMSAuthResponse response) {
@@ -1141,9 +1182,9 @@ IPificationServices.startAuthentication(
     }
 
     override fun onOTPRequired(response: SMSAuthResponse) {
-      // SMS channel selected. Save these values and show your OTP input screen.
-      val authReqId = response.authReqId
-      val nonce = response.nonce
+      // SMS channel selected. Keep this response and show your OTP input screen.
+      // It carries auth_req_id, nonce and the SMS token params for verifySMSOTP().
+      savedSmsSession = response
     }
 
     override fun onError(error: IPificationError) {
@@ -1180,9 +1221,9 @@ IPificationServices.startAuthentication(this, authRequest, new MultiAuthCallback
 
   @Override
   public void onOTPRequired(@NonNull SMSAuthResponse response) {
-    // SMS channel selected. Save these values and show your OTP input screen.
-    String authReqId = response.getAuthReqId();
-    String nonce = response.getNonce();
+    // SMS channel selected. Keep this response and show your OTP input screen.
+    // It carries auth_req_id, nonce and the SMS token params for verifySMSOTP().
+    savedSmsSession = response;
   }
 
   @Override
@@ -1194,9 +1235,72 @@ IPificationServices.startAuthentication(this, authRequest, new MultiAuthCallback
 
 <!-- tabs:end -->
 
+#### 4.2.1 Channel-specific custom parameters
+
+Each channel talks to a different backend contract, so partner-specific values are declared per channel and per stage. Nothing is broadcast implicitly: a value configured for SMS is never sent to TS43 or IP.
+
+| Builder | `addAuthParam` goes to | `addTokenParam` goes to | `addHeader` goes to |
+| --- | --- | --- | --- |
+| `ip { ... }` / `setIPOptions` | IP authorization request query string | `IP_TOKEN_URL` form body (only when `IP_TOKEN_URL` is set) | both IP requests |
+| `ts43 { ... }` / `setTS43Options` | `/ts43/auth` body | `/ts43/token` body | both TS43 requests |
+| `sms { ... }` / `setSMSOptions` | `/sms/auth` body | `/sms/token` body (reused automatically by `verifySMSOTP`) | both SMS requests |
+
+Keys owned by the SDK (`client_id`, `login_hint`, `scope`, `code`, `auth_req_id`, `nonce`, `vp_token`, ...) are reserved: adding one throws `IllegalArgumentException` so the mistake is caught during development. Options configured for a channel that is not in `AUTH_CHANNELS` are ignored (a debug log line is written).
+
+<!-- tabs:start -->
+
+#### **Kotlin**
+
+```kotlin
+val authRequest = AuthRequest.Builder()
+  .setScope("openid ip:phone_verify")
+  .addQueryParam("login_hint", country_code + user_input_phone_number)
+  .ts43 {
+    addAuthParam("server_id", serverId)
+    addTokenParam("server_id", serverId)
+    setScope("openid ip:phone")            // optional TS43-only scope override
+  }
+  .ip {
+    addAuthParam("consent_id", consentId)  // IP authorization request only
+    addTokenParam("server_id", serverId)   // IP_TOKEN_URL body only
+  }
+  .sms {
+    addAuthParam("server_id", serverId)
+    addAuthParam("locale", "vi")
+    addTokenParam("server_id", serverId)
+  }
+  .build()
+
+// Same value for every channel? Say so explicitly:
+// .forAllChannels { addAuthParam("server_id", serverId) }
+```
+
+#### **Java**
+
+```java
+AuthRequest authRequest = new AuthRequest.Builder()
+  .setScope("openid ip:phone_verify")
+  .setTS43Options(new TS43ChannelOptions.Builder()
+    .addAuthParam("server_id", serverId)
+    .addTokenParam("server_id", serverId)
+    .build())
+  .setIPOptions(new IPChannelOptions.Builder()
+    .addAuthParam("consent_id", consentId)
+    .addTokenParam("server_id", serverId)
+    .build())
+  .setSMSOptions(new SMSChannelOptions.Builder()
+    .addAuthParam("server_id", serverId)
+    .addTokenParam("server_id", serverId)
+    .build())
+  .build();
+// Then call addQueryParam("login_hint", ...) on the builder before build(), as in the examples above.
+```
+
+<!-- tabs:end -->
+
 #### 4.3 Complete SMS OTP
 
-After `onOTPRequired()`, verify the OTP to complete the SMS channel. The SDK calls your configured `SMS_TOKEN_PATH` endpoint and returns `SMSTokenResponse`.
+After `onOTPRequired()`, verify the OTP to complete the SMS channel. Pass the `SMSAuthResponse` you received: it already carries `auth_req_id`, `nonce` and the SMS token params/headers from the original request, so nothing has to be re-supplied. The SDK calls your configured `SMS_TOKEN_PATH` endpoint and returns `SMSTokenResponse`.
 
 <!-- tabs:start -->
 
@@ -1206,8 +1310,7 @@ After `onOTPRequired()`, verify the OTP to complete the SMS channel. The SDK cal
 IPificationServices.verifySMSOTP(
   activity = this,
   otpCode = user_entered_otp_code,
-  authReqId = saved_auth_req_id,
-  nonce = saved_nonce,
+  session = savedSmsSession,   // SMSAuthResponse from onOTPRequired()
   callback = object : SMSCallback {
     override fun onAuthInitiated(response: SMSAuthResponse) {
       // Required by SMSCallback, but verifySMSOTP() does not call this method.
@@ -1233,8 +1336,7 @@ IPificationServices.verifySMSOTP(
 IPificationServices.verifySMSOTP(
   this,
   user_entered_otp_code,
-  saved_auth_req_id,
-  saved_nonce,
+  savedSmsSession,   // SMSAuthResponse from onOTPRequired()
   new SMSCallback() {
     @Override
     public void onAuthInitiated(@NonNull SMSAuthResponse response) {

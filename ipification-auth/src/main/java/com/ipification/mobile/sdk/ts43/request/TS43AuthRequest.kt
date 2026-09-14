@@ -15,6 +15,7 @@ import org.json.JSONObject
  * @property operation The type of TS43 operation (VerifyPhoneNumber or GetPhoneNumber).
  * @property customParams Extra parameters sent only with the /ts43/auth request.
  * @property tokenCustomParams Extra parameters carried forward to the /ts43/token request.
+ * @property headers Extra HTTP headers sent with both TS43 backend requests.
  */
 data class TS43AuthRequest(
     val loginHint: String?,
@@ -23,7 +24,8 @@ data class TS43AuthRequest(
     val scope: String,
     val operation: TS43Operation,
     val customParams: Map<String, String>? = null,
-    val tokenCustomParams: Map<String, String>? = null
+    val tokenCustomParams: Map<String, String>? = null,
+    val headers: Map<String, String>? = null
 ) {
     /**
      * Convert the auth request into the JSON body expected by /ts43/auth.
@@ -56,6 +58,7 @@ data class TS43AuthRequest(
         private var operation: TS43Operation = TS43Operation.VERIFY_PHONE_NUMBER
         private val customParams: MutableMap<String, String> = mutableMapOf()
         private val tokenCustomParams: MutableMap<String, String> = mutableMapOf()
+        private val headers: MutableMap<String, String> = mutableMapOf()
 
         /**
          * Set the login hint value to verify (for VerifyPhoneNumber operation).
@@ -123,6 +126,16 @@ data class TS43AuthRequest(
         }
 
         /**
+         * Add an HTTP header sent with both the /ts43/auth and /ts43/token requests.
+         * @param key Header name.
+         * @param value Header value.
+         */
+        fun addHeader(key: String, value: String): Builder {
+            this.headers[key] = value
+            return this
+        }
+
+        /**
          * Build the TS43AuthRequest.
          * @return Configured TS43AuthRequest instance.
          * @throws IllegalArgumentException if required fields are missing.
@@ -157,7 +170,8 @@ data class TS43AuthRequest(
                 scope = finalScope,
                 operation = operation,
                 customParams = if (customParams.isNotEmpty()) customParams.toMap() else null,
-                tokenCustomParams = if (tokenCustomParams.isNotEmpty()) tokenCustomParams.toMap() else null
+                tokenCustomParams = if (tokenCustomParams.isNotEmpty()) tokenCustomParams.toMap() else null,
+                headers = if (headers.isNotEmpty()) headers.toMap() else null
             )
         }
     }

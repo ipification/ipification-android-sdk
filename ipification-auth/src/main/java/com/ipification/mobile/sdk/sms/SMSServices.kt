@@ -12,6 +12,7 @@ import com.ipification.mobile.sdk.ip.IPConfiguration
 import com.ipification.mobile.sdk.ip.SubmitErrorService
 import com.ipification.mobile.sdk.ip.exception.IPificationError
 import com.ipification.mobile.sdk.ip.network.NetworkManager
+import com.ipification.mobile.sdk.ip.request.SMSChannelOptions
 import com.ipification.mobile.sdk.sms.callback.SMSCallback
 import com.ipification.mobile.sdk.sms.response.SMSAuthResponse
 import com.ipification.mobile.sdk.sms.response.SMSTokenResponse
@@ -144,6 +145,31 @@ class SMSServices {
             scope: String = "openid ip:phone_verify",
             callback: SMSCallback
         ) {
+            startVerification(activity, phoneNumber, scope, SMSChannelOptions.EMPTY, callback)
+        }
+
+        /**
+         * Start SMS verification flow with channel options.
+         *
+         * [SMSChannelOptions.authParams] and [SMSChannelOptions.headers] are sent with `/sms/auth`;
+         * [SMSChannelOptions.tokenParams] and headers are captured in the returned [SMSAuthResponse]
+         * and reused by [verifyOTP] so the app does not need to repeat them.
+         *
+         * @param activity Activity used for callbacks and SDK error reporting.
+         * @param phoneNumber Phone number to verify. E.164 format is recommended.
+         * @param scope OAuth scope. Defaults to `openid ip:phone_verify`.
+         * @param options Partner parameters and headers for the SMS backend calls.
+         * @param callback Callback to receive auth initiation result or errors.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun startVerification(
+            activity: Activity,
+            phoneNumber: String,
+            scope: String = "openid ip:phone_verify",
+            options: SMSChannelOptions,
+            callback: SMSCallback
+        ) {
             clearProcessNetworkBinding(activity)
 
             val config = IPConfiguration.getInstance()
@@ -177,12 +203,13 @@ class SMSServices {
                 return
             }
 
-            onLog("SMSServices.startVerification: phoneNumberLength=${loginHint.length}")
+            onLog("SMSServices.startVerification: phoneNumberLength=${loginHint.length} authParams=${options.authParams.keys} headers=${options.headers.keys}")
 
             val authEndpoint = "${config.getSMSBackendUrl()}${config.SMS_AUTH_PATH}"
 
-            // Build request body
+            // Build request body; partner params never override the SDK-owned keys.
             val requestJson = JSONObject().apply {
+                options.authParams.forEach { (key, value) -> put(key, value) }
                 put("client_id", config.CLIENT_ID)
                 put("login_hint", loginHint)
                 put("scope", finalScope)
@@ -200,6 +227,7 @@ class SMSServices {
                 .url(authEndpoint)
                 .post(requestBody)
                 .addHeader("Content-Type", "application/json")
+                .applyCustomHeaders(options.headers)
                 .build()
 
             httpClient.newCall(request).enqueue(object : Callback {
@@ -233,7 +261,7 @@ class SMSServices {
                         }
 
                         try {
-                            val authResponse = SMSAuthResponse.fromJson(responseBody)
+                            val authResponse = SMSAuthResponse.fromJson(responseBody, options)
                             onLog("SMSServices: Auth initiated successfully")
                             isRequestInProgress.set(false)
                             mainHandler.post { callback.onAuthInitiated(authResponse) }
@@ -274,6 +302,44 @@ class SMSServices {
             nonce: String,
             callback: SMSCallback
         ) {
+            verifyOTP(activity, otpCode, authReqId, nonce, SMSChannelOptions.EMPTY, callback)
+        }
+
+        /**
+         * Verify the OTP code using the session returned by [startVerification].
+         *
+         * The `auth_req_id`, `nonce`, token parameters and headers captured in [session] are reused,
+         * so the app only needs to keep the response object between the two steps.
+         *
+         * @param activity Activity used for callbacks and SDK error reporting.
+         * @param otpCode The OTP code entered by the user.
+         * @param session The [SMSAuthResponse] delivered by `onAuthInitiated` / `onOTPRequired`.
+         * @param callback Callback to receive the verification result.
+         */
+        @JvmStatic
+        fun verifyOTP(
+            activity: Activity,
+            otpCode: String,
+            session: SMSAuthResponse,
+            callback: SMSCallback
+        ) {
+            verifyOTP(activity, otpCode, session.authReqId, session.nonce, session.options, callback)
+        }
+
+        /**
+         * Verify the OTP code with explicit channel options.
+         *
+         * @param options Only [SMSChannelOptions.tokenParams] and [SMSChannelOptions.headers] are used here.
+         */
+        @JvmStatic
+        fun verifyOTP(
+            activity: Activity,
+            otpCode: String,
+            authReqId: String,
+            nonce: String,
+            options: SMSChannelOptions,
+            callback: SMSCallback
+        ) {
             val code = otpCode.trim()
             val requestId = authReqId.trim()
             val requestNonce = nonce.trim()
@@ -308,13 +374,14 @@ class SMSServices {
                 return
             }
 
-            onLog("SMSServices.verifyOTP: authReqIdLength=${requestId.length}")
+            onLog("SMSServices.verifyOTP: authReqIdLength=${requestId.length} tokenParams=${options.tokenParams.keys} headers=${options.headers.keys}")
 
             val config = IPConfiguration.getInstance()
             val tokenEndpoint = "${config.getSMSBackendUrl()}${config.SMS_TOKEN_PATH}"
 
-            // Build request body
+            // Build request body; partner params never override the SDK-owned keys.
             val requestJson = JSONObject().apply {
+                options.tokenParams.forEach { (key, value) -> put(key, value) }
                 put("code", code)
                 put("auth_req_id", requestId)
                 put("client_id", config.CLIENT_ID)
@@ -332,6 +399,7 @@ class SMSServices {
                 .url(tokenEndpoint)
                 .post(requestBody)
                 .addHeader("Content-Type", "application/json")
+                .applyCustomHeaders(options.headers)
                 .build()
 
             httpClient.newCall(request).enqueue(object : Callback {
@@ -381,6 +449,16 @@ class SMSServices {
                     }
                 }
             })
+        }
+
+        /** Adds partner headers; Content-Type stays owned by the SDK. */
+        private fun Request.Builder.applyCustomHeaders(headers: Map<String, String>): Request.Builder {
+            headers.forEach { (name, value) ->
+                if (!name.equals("Content-Type", ignoreCase = true)) {
+                    header(name, value)
+                }
+            }
+            return this
         }
 
         /**

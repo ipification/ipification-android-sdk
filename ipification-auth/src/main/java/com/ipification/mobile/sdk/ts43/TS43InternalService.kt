@@ -88,6 +88,7 @@ internal class TS43InternalService(private val context: Context) {
             .url(url)
             .post(requestBody)
             .addHeader("Content-Type", CONTENT_TYPE_JSON)
+            .applyCustomHeaders(request.headers)
             .build()
         val requestHeadersBytes = if (debug) httpRequest.headers.byteCount() else 0L
         val requestBodyBytes = if (debug) DebugNetworkMetrics.utf8Size(jsonBody) else 0L
@@ -202,6 +203,7 @@ internal class TS43InternalService(private val context: Context) {
             .url(url)
             .post(requestBody)
             .addHeader("Content-Type", CONTENT_TYPE_JSON)
+            .applyCustomHeaders(request.headers)
             .build()
         val requestHeadersBytes = if (debug) httpRequest.headers.byteCount() else 0L
         val requestBodyBytes = if (debug) DebugNetworkMetrics.utf8Size(jsonBody) else 0L
@@ -395,6 +397,16 @@ internal class TS43InternalService(private val context: Context) {
      */
     fun getCarrierHintFromPhoneNumber(phoneNumber: String?): String? {
         return CarrierHintHelper.getCarrierHint(phoneNumber)
+    }
+
+    /** Adds partner headers; Content-Type stays owned by the SDK. */
+    private fun Request.Builder.applyCustomHeaders(headers: Map<String, String>?): Request.Builder {
+        headers?.forEach { (name, value) ->
+            if (!name.equals("Content-Type", ignoreCase = true)) {
+                header(name, value)
+            }
+        }
+        return this
     }
 
     companion object {

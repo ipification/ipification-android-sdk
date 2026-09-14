@@ -10,6 +10,7 @@ import com.ipification.mobile.sdk.ip.IPConfiguration
 import com.ipification.mobile.sdk.ip.common.response.ApiResponse
 import com.ipification.mobile.sdk.ip.exception.CellularException
 import com.ipification.mobile.sdk.ip.interceptor.HandleRedirectInterceptor
+import com.ipification.mobile.sdk.ip.interceptor.SdkHeadersInterceptor
 import com.ipification.mobile.sdk.ip.interceptor.LoggingInterceptor
 import com.ipification.mobile.sdk.ip.common.internal.CellularCallback
 import com.ipification.mobile.sdk.ip.response.AuthApiResponse
@@ -109,12 +110,14 @@ class CellularConnection<T>() {
     private fun buildHttpClient(requestUri: String, retryCount: Int): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .addNetworkInterceptor(
-                HandleRedirectInterceptor(
+                SdkHeadersInterceptor(
                     context,
                     requestUri,
-                    authRequest.redirectUri.toString(),
                     authRequest.apiType != ApiType.OTHER
                 )
+            )
+            .addNetworkInterceptor(
+                HandleRedirectInterceptor(authRequest.redirectUri?.toString())
             )
 
         if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
