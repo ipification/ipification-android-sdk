@@ -9,12 +9,14 @@ import org.json.JSONObject
  * @property authReqId The authentication request ID from the initial CIBA auth response.
  * @property clientId OAuth client ID.
  * @property customParams Extra partner-specific parameters sent with the token request.
+ * @property headers Extra HTTP headers sent with the token request.
  */
 data class TS43TokenRequest(
     val vpToken: String,
     val authReqId: String,
     val clientId: String,
-    val customParams: Map<String, String>? = null
+    val customParams: Map<String, String>? = null,
+    val headers: Map<String, String>? = null
 ) {
     /**
      * Convert the token exchange request into the JSON body expected by /ts43/token.

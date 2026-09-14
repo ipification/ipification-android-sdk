@@ -18,12 +18,15 @@ import com.ipification.mobile.sdk.ip.exception.CellularException
 import com.ipification.mobile.sdk.ip.exception.IPificationError
 import com.ipification.mobile.sdk.ip.network.NetworkManager
 import com.ipification.mobile.sdk.ip.request.AuthRequest
+import com.ipification.mobile.sdk.ip.request.IPChannelOptions
+import com.ipification.mobile.sdk.ip.request.SMSChannelOptions
 import com.ipification.mobile.sdk.ip.response.AuthApiResponse
 import com.ipification.mobile.sdk.ip.response.CoverageResponse
 import com.ipification.mobile.sdk.ip.response.IPAuthResponse
 import com.ipification.mobile.sdk.ip.response.toIPAuthResponse
 import com.ipification.mobile.sdk.sms.SMSServices
 import com.ipification.mobile.sdk.sms.callback.SMSCallback
+import com.ipification.mobile.sdk.sms.response.SMSAuthResponse
 import com.ipification.mobile.sdk.ts43.TS43Services
 import com.ipification.mobile.sdk.ts43.callback.TS43Callback
 import com.ipification.mobile.sdk.ts43.exception.TS43ErrorCode
@@ -67,6 +70,7 @@ class IPificationServices {
             authRequest: AuthRequest,
             callback: IPAuthCallback
         ) {
+            warnUnusedChannelOptions(authRequest, IPConfiguration.getInstance().AUTH_CHANNELS)
             processAuthChannel(
                 activity = activity,
                 channels = IPConfiguration.getInstance().AUTH_CHANNELS,
@@ -75,6 +79,21 @@ class IPificationServices {
                 callback = callback,
                 authRequest = authRequest
             )
+        }
+
+        /** Logs channel options that were configured for a channel missing from [channels]. */
+        private fun warnUnusedChannelOptions(authRequest: AuthRequest, channels: List<AuthChannel>) {
+            if (authRequest.ts43Options.isNotEmpty() && AuthChannel.TS43 !in channels) {
+                onLog("ts43 options were set but TS43 is not in AUTH_CHANNELS; they will be ignored")
+            }
+            if (authRequest.smsOptions.isNotEmpty() && AuthChannel.SMS !in channels) {
+                onLog("sms options were set but SMS is not in AUTH_CHANNELS; they will be ignored")
+            }
+            if (authRequest.ipOptions.tokenParams.isNotEmpty() &&
+                IPConfiguration.getInstance().IP_TOKEN_URL.isBlank()
+            ) {
+                onLog("ip token params were set but IP_TOKEN_URL is blank; they will be ignored")
+            }
         }
 
         /**
@@ -87,6 +106,7 @@ class IPificationServices {
             callback: TS43Callback
         ) {
             val phoneNumber = authRequest.queryParameters?.get("login_hint")
+            warnUnusedChannelOptions(authRequest, IPConfiguration.getInstance().AUTH_CHANNELS)
             val ipCallback = object : IPAuthCallback {
                 override fun onSuccess(response: IPAuthResponse) {
                     val ts43Response = response.ts43TokenResponse
@@ -150,6 +170,56 @@ class IPificationServices {
             callback: SMSCallback
         ) {
             SMSServices.verifyOTP(activity, otpCode, authReqId, nonce, callback)
+        }
+
+        /**
+         * Start SMS verification with channel options (partner params/headers for `/sms/auth` and `/sms/token`).
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun startSMSAuthentication(
+            activity: Activity,
+            phoneNumber: String,
+            scope: String = "openid ip:phone_verify",
+            options: SMSChannelOptions,
+            callback: SMSCallback
+        ) {
+            SMSServices.startVerification(activity, phoneNumber, scope, options, callback)
+        }
+
+        /**
+         * Complete SMS verification using the session delivered by [MultiAuthCallback.onOTPRequired]
+         * or [SMSCallback.onAuthInitiated]. The session already carries `auth_req_id`, `nonce` and the
+         * SMS token parameters/headers configured on the original request.
+         *
+         * @param activity The activity context
+         * @param otpCode The OTP code entered by the user
+         * @param session The [SMSAuthResponse] received when the OTP was sent
+         * @param callback SMSCallback to handle verification result
+         */
+        @JvmStatic
+        fun verifySMSOTP(
+            activity: Activity,
+            otpCode: String,
+            session: SMSAuthResponse,
+            callback: SMSCallback
+        ) {
+            SMSServices.verifyOTP(activity, otpCode, session, callback)
+        }
+
+        /**
+         * Complete SMS verification with explicit channel options (only token params and headers are used).
+         */
+        @JvmStatic
+        fun verifySMSOTP(
+            activity: Activity,
+            otpCode: String,
+            authReqId: String,
+            nonce: String,
+            options: SMSChannelOptions,
+            callback: SMSCallback
+        ) {
+            SMSServices.verifyOTP(activity, otpCode, authReqId, nonce, options, callback)
         }
 
         /**
@@ -265,19 +335,14 @@ class IPificationServices {
                         }
                     }
 
-                    val customParams = authRequest.queryParameters?.filterKeys { key ->
-                        key != "login_hint" && key != "client_id" && key != "scope" &&
-                        key != "redirect_uri" && key != "response_type" && key != "state"
-                    }
-
-                    val tokenCustomParams = authRequest.ts43TokenCustomParams
+                    val ts43Options = authRequest.ts43Options
 
                     if (phoneNumber != null && phoneNumber != IPConfiguration.getInstance().TS43_DEFALT_LOGIN_HINT_SCOPE_GET_PHONE) {
-                        onLog("TS43 start operation=VERIFY_PHONE_NUMBER customParams=${customParams?.keys} tokenCustomParams=${tokenCustomParams?.keys}")
-                        TS43Services.verifyPhoneNumber(activity, phoneNumber, customParams, tokenCustomParams, ts43Callback)
+                        onLog("TS43 start operation=VERIFY_PHONE_NUMBER authParams=${ts43Options.authParams.keys} tokenParams=${ts43Options.tokenParams.keys}")
+                        TS43Services.verifyPhoneNumber(activity, phoneNumber, ts43Options, ts43Callback)
                     } else {
-                        onLog("TS43 start operation=GET_PHONE_NUMBER customParams=${customParams?.keys} tokenCustomParams=${tokenCustomParams?.keys}")
-                        TS43Services.getPhoneNumber(activity, customParams, tokenCustomParams, ts43Callback)
+                        onLog("TS43 start operation=GET_PHONE_NUMBER authParams=${ts43Options.authParams.keys} tokenParams=${ts43Options.tokenParams.keys}")
+                        TS43Services.getPhoneNumber(activity, ts43Options, ts43Callback)
                     }
                 }
                 AuthChannel.IP -> {
@@ -298,6 +363,7 @@ class IPificationServices {
                                 onLog("IP token exchange start")
                                 performIPTokenExchange(
                                     code = response.code,
+                                    options = authRequest.ipOptions,
                                     onSuccess = { tokenResponse ->
                                         onLog("IP token exchange success rawLength=${tokenResponse.rawResponse.length}")
                                         response.fullResponse = tokenResponse.rawResponse
@@ -383,6 +449,7 @@ class IPificationServices {
                         activity = activity,
                         phoneNumber = phoneNumber,
                         scope = scope ?: IPConfiguration.getInstance().SMS_SCOPE_VERIFY_PHONE,
+                        options = authRequest.smsOptions,
                         callback = object : SMSCallback {
                             override fun onAuthInitiated(response: com.ipification.mobile.sdk.sms.response.SMSAuthResponse) {
                                 onLog("SMS auth initiated, OTP required")
@@ -421,6 +488,7 @@ class IPificationServices {
          */
         private fun performIPTokenExchange(
             code: String,
+            options: IPChannelOptions,
             onSuccess: (TS43TokenResponse) -> Unit,
             onError: (Exception) -> Unit
         ) {
@@ -438,14 +506,21 @@ class IPificationServices {
                 return
             }
 
-            val formBody = FormBody.Builder()
+            val formBodyBuilder = FormBody.Builder()
+            // Partner params first so the SDK-owned keys are always the effective values.
+            options.tokenParams.forEach { (key, value) ->
+                if (key !in IPChannelOptions.RESERVED_TOKEN_KEYS) {
+                    formBodyBuilder.add(key, value)
+                }
+            }
+            val formBody = formBodyBuilder
                 .add("grant_type", "authorization_code")
                 .add("client_id", IPConfiguration.getInstance().CLIENT_ID)
                 .add("redirect_uri", redirectUri.toString())
                 .add("code", code)
                 .build()
 
-            onLog("IP token exchange request started")
+            onLog("IP token exchange request started tokenParams=${options.tokenParams.keys} headers=${options.headers.keys}")
 
             val client = OkHttpClient.Builder()
                 .connectTimeout(IPConfiguration.getInstance().AUTH_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS)
@@ -453,11 +528,16 @@ class IPificationServices {
                 .retryOnConnectionFailure(IPConfiguration.getInstance().retryOnConnectionFailure)
                 .build()
 
-            val httpRequest = Request.Builder()
+            val httpRequestBuilder = Request.Builder()
                 .url(url)
                 .post(formBody)
                 .addHeader("Content-Type", "application/x-www-form-urlencoded")
-                .build()
+            options.headers.forEach { (name, value) ->
+                if (!name.equals("Content-Type", ignoreCase = true)) {
+                    httpRequestBuilder.header(name, value)
+                }
+            }
+            val httpRequest = httpRequestBuilder.build()
 
             client.newCall(httpRequest).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {

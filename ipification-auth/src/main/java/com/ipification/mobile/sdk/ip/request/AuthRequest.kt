@@ -38,8 +38,20 @@ class AuthRequest() {
     /** HTTP headers added to the request. */
     internal var headers: HashMap<String, String>? = null
 
-    /** Custom parameters forwarded during TS43 token exchange. */
+    /** Custom parameters forwarded during TS43 token exchange (legacy view of [ts43Options].tokenParams). */
     internal var ts43TokenCustomParams: HashMap<String, String>? = null
+
+    /** Custom parameters and headers applied to the IP channel. */
+    var ipOptions: IPChannelOptions = IPChannelOptions.EMPTY
+        internal set
+
+    /** Custom parameters, headers and overrides applied to the TS.43 channel. */
+    var ts43Options: TS43ChannelOptions = TS43ChannelOptions.EMPTY
+        internal set
+
+    /** Custom parameters and headers applied to the SMS channel. */
+    var smsOptions: SMSChannelOptions = SMSChannelOptions.EMPTY
+        internal set
 
     /** Client identifier sent with the request. */
     private var clientId: String = ""
@@ -79,13 +91,19 @@ class AuthRequest() {
         redirectUri: Uri?,
         responseType: String,
         state: String?,
-        scope: String?
+        scope: String?,
+        ipOptions: IPChannelOptions,
+        ts43Options: TS43ChannelOptions,
+        smsOptions: SMSChannelOptions
     ) : this() {
         this.apiType = apiType
         this.endpoint = endpoint
         this.queryParameters = queryParameters
         this.headers = headers
         this.ts43TokenCustomParams = ts43TokenCustomParams
+        this.ipOptions = ipOptions
+        this.ts43Options = ts43Options
+        this.smsOptions = smsOptions
         this.readTimeout = readTimeout
         this.connectTimeout = connectTimeout
         this.clientId = clientId
@@ -105,8 +123,12 @@ class AuthRequest() {
         /** HTTP headers copied into the built request. */
         internal var headers: HashMap<String, String>? = null
 
-        /** TS43 token parameters copied into the built request. */
+        /** TS43 token parameters copied into the built request (legacy; see [ts43]). */
         internal var ts43TokenCustomParams: HashMap<String, String>? = null
+
+        private var ipOptionsBuilder: IPChannelOptions.Builder? = null
+        private var ts43OptionsBuilder: TS43ChannelOptions.Builder? = null
+        private var smsOptionsBuilder: SMSChannelOptions.Builder? = null
 
         /** Client identifier sent with the request. */
         private var clientId: String = ""
@@ -134,23 +156,121 @@ class AuthRequest() {
         /** API operation used to build and parse the request. */
         var apiType: ApiType? = ApiType.OTHER
 
-        /** Creates an immutable request snapshot from this builder. */
+        /**
+         * Creates an immutable request snapshot from this builder.
+         *
+         * IP channel options are merged into the request query parameters and headers so the IP flow
+         * keeps a single source of custom values; TS.43 and SMS options are kept separate because they
+         * target different backend contracts.
+         */
         fun build(): AuthRequest {
+            val ipOptions = ipOptionsBuilder?.build() ?: IPChannelOptions.EMPTY
+            val ts43Options = ts43OptionsBuilder?.build() ?: TS43ChannelOptions.EMPTY
+            val smsOptions = smsOptionsBuilder?.build() ?: SMSChannelOptions.EMPTY
+
+            val mergedQueryParameters = queryParameters?.let { HashMap(it) }
+            val mergedHeaders = headers?.let { HashMap(it) }
+            val finalQueryParameters = if (ipOptions.authParams.isEmpty()) {
+                mergedQueryParameters
+            } else {
+                (mergedQueryParameters ?: HashMap()).apply { putAll(ipOptions.authParams) }
+            }
+            val finalHeaders = if (ipOptions.headers.isEmpty()) {
+                mergedHeaders
+            } else {
+                (mergedHeaders ?: HashMap()).apply { putAll(ipOptions.headers) }
+            }
+            val legacyTokenParams = ts43Options.tokenParams
+                .takeIf { it.isNotEmpty() }
+                ?.let { HashMap(it) }
+
             return AuthRequest(
                 apiType,
                 endpoint,
-                queryParameters,
-                headers,
-                ts43TokenCustomParams,
+                finalQueryParameters,
+                finalHeaders,
+                legacyTokenParams,
                 readTimeout,
                 connectTimeout,
                 clientId,
                 redirectUri,
                 responseType,
                 state,
-                scope
+                scope,
+                ipOptions,
+                ts43Options,
+                smsOptions
             )
         }
+
+        /** Configures custom parameters and headers for the IP channel. */
+        fun ip(block: IPChannelOptions.Builder.() -> Unit): Builder {
+            ipBuilder().apply(block)
+            return this
+        }
+
+        /** Configures custom parameters, headers and overrides for the TS.43 channel. */
+        fun ts43(block: TS43ChannelOptions.Builder.() -> Unit): Builder {
+            ts43Builder().apply(block)
+            return this
+        }
+
+        /** Configures custom parameters and headers for the SMS channel. */
+        fun sms(block: SMSChannelOptions.Builder.() -> Unit): Builder {
+            smsBuilder().apply(block)
+            return this
+        }
+
+        /**
+         * Applies the same custom values to every channel.
+         *
+         * Values are still validated against each channel's reserved keys. Use this only when a value is
+         * meaningful for every backend contract; prefer [ip], [ts43] and [sms] for channel-specific data.
+         */
+        fun forAllChannels(block: ChannelOptions.CommonBuilder<*>.() -> Unit): Builder {
+            ipBuilder().block()
+            ts43Builder().block()
+            smsBuilder().block()
+            return this
+        }
+
+        /** Applies prebuilt IP channel options (Java-friendly alternative to [ip]). */
+        fun setIPOptions(options: IPChannelOptions): Builder {
+            ipBuilder()
+                .putAllAuthParams(options.authParams)
+                .putAllTokenParams(options.tokenParams)
+                .putAllHeaders(options.headers)
+            return this
+        }
+
+        /** Applies prebuilt TS.43 channel options (Java-friendly alternative to [ts43]). */
+        fun setTS43Options(options: TS43ChannelOptions): Builder {
+            ts43Builder()
+                .putAllAuthParams(options.authParams)
+                .putAllTokenParams(options.tokenParams)
+                .putAllHeaders(options.headers)
+            options.scope?.let { ts43Builder().setScope(it) }
+            options.carrierHint?.let { ts43Builder().setCarrierHint(it) }
+            return this
+        }
+
+        /** Applies prebuilt SMS channel options (Java-friendly alternative to [sms]). */
+        fun setSMSOptions(options: SMSChannelOptions): Builder {
+            smsBuilder()
+                .putAllAuthParams(options.authParams)
+                .putAllTokenParams(options.tokenParams)
+                .putAllHeaders(options.headers)
+            return this
+        }
+
+        private fun ipBuilder(): IPChannelOptions.Builder =
+            ipOptionsBuilder ?: IPChannelOptions.Builder().also { ipOptionsBuilder = it }
+
+        private fun ts43Builder(): TS43ChannelOptions.Builder =
+            ts43OptionsBuilder ?: TS43ChannelOptions.Builder().also { ts43OptionsBuilder = it }
+
+        private fun smsBuilder(): SMSChannelOptions.Builder =
+            smsOptionsBuilder ?: SMSChannelOptions.Builder().also { smsOptionsBuilder = it }
 
         /** Sets the OAuth response type. */
         fun setResponseType(responseType: String): Builder {
@@ -196,17 +316,13 @@ class AuthRequest() {
             queryParameters!![key] = value
         }
 
-        /**
-         * Adds or replaces a TS43 token-exchange parameter.
-         *
-         */
-
         /** Adds or replaces a TS43 token-exchange parameter. */
+        @Deprecated(
+            message = "Use ts43 { addTokenParam(key, value) } or setTS43Options(...).",
+            replaceWith = ReplaceWith("ts43 { addTokenParam(key, value) }")
+        )
         fun addTS43TokenCustomParam(key: String, value: String) {
-            if (ts43TokenCustomParams == null) {
-                ts43TokenCustomParams = HashMap()
-            }
-            ts43TokenCustomParams!![key] = value
+            ts43Builder().addTokenParam(key, value)
         }
 
         /** Sets the client identifier. */

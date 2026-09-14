@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.ipification.demoapp.BuildConfig
 import com.ipification.demoapp.manager.ConfigManager
 import com.ipification.demoapp.manager.CustomInterceptor
+import com.ipification.demoapp.manager.SmsSessionStore
 import com.ipification.demoapp.util.Util
 import com.ipification.mobile.sdk.ip.AuthChannel
 import com.ipification.mobile.sdk.ip.IPConfiguration
@@ -16,6 +17,7 @@ import com.ipification.mobile.sdk.ip.callback.IPAuthCallback
 import com.ipification.mobile.sdk.ip.callback.MultiAuthCallback
 import com.ipification.mobile.sdk.ip.exception.IPificationError
 import com.ipification.mobile.sdk.ip.request.AuthRequest
+import com.ipification.mobile.sdk.ip.request.SMSChannelOptions
 import com.ipification.mobile.sdk.ip.response.IPAuthResponse
 import com.ipification.mobile.sdk.sms.response.SMSAuthResponse
 import com.ipification.mobile.sdk.ip.utils.IPLogs
@@ -227,9 +229,12 @@ class ProcessViewModel : ViewModel() {
         if (loginHint.isNotEmpty() && loginHint != "anonymous") {
             authRequestBuilder.addQueryParam("login_hint", loginHint)
         }
-        authRequestBuilder.addQueryParam("server_id", serverId)
-        authRequestBuilder.addTS43TokenCustomParam("server_id", serverId)
         authRequestBuilder.setScope(scope)
+        // server_id is a showcase-backend concept, so it is scoped to the TS43 channel only.
+        authRequestBuilder.ts43 {
+            addAuthParam("server_id", serverId)
+            addTokenParam("server_id", serverId)
+        }
         val authRequest = authRequestBuilder.build()
 
         IPificationServices.startAuthentication(activity, authRequest, object : IPAuthCallback {
@@ -267,9 +272,17 @@ class ProcessViewModel : ViewModel() {
         val serverId = ConfigManager.selectedServerId ?: "stage"
         val authRequestBuilder = AuthRequest.Builder()
         authRequestBuilder.addQueryParam("login_hint", loginHint)
-        authRequestBuilder.addQueryParam("server_id", serverId)
-        authRequestBuilder.addTS43TokenCustomParam("server_id", serverId)
         authRequestBuilder.setScope(scope)
+        // Each channel talks to a different backend contract, so partner params are declared per channel.
+        // The IP channel talks to the IPification auth server directly and does not need server_id.
+        authRequestBuilder.ts43 {
+            addAuthParam("server_id", serverId)
+            addTokenParam("server_id", serverId)
+        }
+        authRequestBuilder.sms {
+            addAuthParam("server_id", serverId)
+            addTokenParam("server_id", serverId)
+        }
         val authRequest = authRequestBuilder.build()
 
         IPificationServices.startAuthentication(activity, authRequest, object : MultiAuthCallback {
@@ -298,6 +311,7 @@ class ProcessViewModel : ViewModel() {
 
             override fun onOTPRequired(response: SMSAuthResponse) {
                 val responseServerId = response.authServer?.id ?: serverId
+                SmsSessionStore.pending = response
                 Log.d(TAG, "Multi-channel OTP required: auth_req_id=${response.authReqId}, nonce=${response.nonce}")
                 _state.update {
                     it.copy(
@@ -323,13 +337,16 @@ class ProcessViewModel : ViewModel() {
     private fun callSmsAuth(activity: Activity, phoneNumber: String, client: com.ipification.demoapp.model.config.ClientConfig) {
         _state.update { it.copy(isLoading = true, message = "Sending SMS verification code...") }
 
+        val selectedServerId = ConfigManager.selectedServerId ?: "stage"
         com.ipification.mobile.sdk.sms.SMSServices.startVerification(
             activity = activity,
             phoneNumber = phoneNumber,
             scope = client.scope,
+            options = smsOptions(selectedServerId),
             callback = object : com.ipification.mobile.sdk.sms.callback.SMSCallback {
                 override fun onAuthInitiated(response: com.ipification.mobile.sdk.sms.response.SMSAuthResponse) {
-                    val serverId = response.authServer?.id ?: ConfigManager.selectedServerId ?: "stage"
+                    val serverId = response.authServer?.id ?: selectedServerId
+                    SmsSessionStore.pending = response
                     Log.d(TAG, "SMS auth initiated: auth_req_id=${response.authReqId}, nonce=${response.nonce}")
                     _state.update {
                         it.copy(
@@ -369,28 +386,41 @@ class ProcessViewModel : ViewModel() {
     fun submitSmsOtp(activity: Activity, otpCode: String, authReqId: String, clientId: String, nonce: String, serverId: String) {
         _state.update { it.copy(isLoading = true, message = "Verifying OTP code...") }
 
-        com.ipification.mobile.sdk.sms.SMSServices.verifyOTP(
-            activity = activity,
-            otpCode = otpCode,
-            authReqId = authReqId,
-            nonce = nonce,
-            callback = object : com.ipification.mobile.sdk.sms.callback.SMSCallback {
-                override fun onAuthInitiated(response: com.ipification.mobile.sdk.sms.response.SMSAuthResponse) {}
+        val callback = object : com.ipification.mobile.sdk.sms.callback.SMSCallback {
+            override fun onAuthInitiated(response: com.ipification.mobile.sdk.sms.response.SMSAuthResponse) {}
 
-                override fun onSuccess(response: com.ipification.mobile.sdk.sms.response.SMSTokenResponse) {
-                    Log.d(TAG, "SMS OTP verified: phoneNumberVerified=${response.phoneNumberVerified}")
-                    _state.update {
-                        it.copy(navigation = ProcessNavigation.ToResult(response.rawResponse, null, false))
-                    }
-                }
-
-                override fun onError(error: IPificationError) {
-                    Log.e(TAG, "SMS OTP error: ${error.getErrorMessage()}")
-                    handleError("OTP verification failed: ${error.getErrorMessage()}")
+            override fun onSuccess(response: com.ipification.mobile.sdk.sms.response.SMSTokenResponse) {
+                Log.d(TAG, "SMS OTP verified: phoneNumberVerified=${response.phoneNumberVerified}")
+                SmsSessionStore.pending = null
+                _state.update {
+                    it.copy(navigation = ProcessNavigation.ToResult(response.rawResponse, null, false))
                 }
             }
-        )
+
+            override fun onError(error: IPificationError) {
+                Log.e(TAG, "SMS OTP error: ${error.getErrorMessage()}")
+                handleError("OTP verification failed: ${error.getErrorMessage()}")
+            }
+        }
+
+        // Preferred: reuse the session delivered when the OTP was sent. It already carries auth_req_id,
+        // nonce and the SMS token params/headers, so nothing has to be re-supplied here.
+        val session = SmsSessionStore.sessionFor(authReqId)
+        if (session != null) {
+            IPificationServices.verifySMSOTP(activity, otpCode, session, callback)
+            return
+        }
+
+        // Fallback (e.g. process restart): rebuild the options explicitly.
+        IPificationServices.verifySMSOTP(activity, otpCode, authReqId, nonce, smsOptions(serverId), callback)
     }
+
+    /** SMS channel options used by the showcase backend: server_id routes both /sms/auth and /sms/token. */
+    private fun smsOptions(serverId: String): SMSChannelOptions =
+        SMSChannelOptions.Builder()
+            .addAuthParam("server_id", serverId)
+            .addTokenParam("server_id", serverId)
+            .build()
 
     /**
      * Resends the SMS OTP code via SDK SMSServices.
@@ -403,9 +433,11 @@ class ProcessViewModel : ViewModel() {
             activity = activity,
             phoneNumber = phoneNumber,
             scope = scope,
+            options = smsOptions(serverId),
             callback = object : com.ipification.mobile.sdk.sms.callback.SMSCallback {
                 override fun onAuthInitiated(response: com.ipification.mobile.sdk.sms.response.SMSAuthResponse) {
                     val resolvedServerId = response.authServer?.id ?: serverId
+                    SmsSessionStore.pending = response
                     Log.d(TAG, "SMS resend initiated: auth_req_id=${response.authReqId}, nonce=${response.nonce}")
                     _state.update {
                         it.copy(

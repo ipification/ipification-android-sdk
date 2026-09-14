@@ -330,6 +330,23 @@ IPConfiguration.getInstance().AUTH_CHANNELS = listOf(
 
 Only available channels are included.
 
+Partner parameters are declared per channel, because each channel talks to a different backend contract (the showcase backend routes TS43 and SMS calls by `server_id`, while the IP channel talks to the IPification auth server directly):
+
+```kotlin
+val authRequest = AuthRequest.Builder()
+    .setScope(client.scope)
+    .addQueryParam("login_hint", phoneNumber)
+    .ts43 {
+        addAuthParam("server_id", serverId)    // /ts43/auth body
+        addTokenParam("server_id", serverId)   // /ts43/token body
+    }
+    .sms {
+        addAuthParam("server_id", serverId)    // /sms/auth body
+        addTokenParam("server_id", serverId)   // /sms/token body, reused by verifySMSOTP()
+    }
+    .build()
+```
+
 The app starts the flow with:
 
 ```kotlin
@@ -340,7 +357,7 @@ IPificationServices.startAuthentication(
 )
 ```
 
-If SMS is required, the SDK callback navigates to `SmsOtpScreen`.
+If SMS is required, `onOTPRequired(response)` stores the `SMSAuthResponse` in `SmsSessionStore` and navigates to `SmsOtpScreen`; the OTP screen completes with `IPificationServices.verifySMSOTP(activity, otp, session, callback)`.
 
 Code path:
 

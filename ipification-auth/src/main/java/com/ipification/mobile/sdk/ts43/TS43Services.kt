@@ -24,6 +24,7 @@ import com.ipification.mobile.sdk.ip.IPConfiguration
 import com.ipification.mobile.sdk.ip.SubmitErrorService
 import com.ipification.mobile.sdk.ip.exception.IPificationError
 import com.ipification.mobile.sdk.ip.network.NetworkManager
+import com.ipification.mobile.sdk.ip.request.TS43ChannelOptions
 import com.ipification.mobile.sdk.ts43.callback.TS43Callback
 import com.ipification.mobile.sdk.ts43.exception.TS43ErrorCode
 import com.ipification.mobile.sdk.ts43.exception.TS43ErrorMessage
@@ -173,8 +174,31 @@ class TS43Services {
             tokenCustomParams: Map<String, String>? = null,
             callback: TS43Callback
         ) {
-            onLog("TS43Services.verifyPhoneNumber: phoneNumberLength=${phoneNumber.length} hasCustomParams=${customParams != null} hasTokenCustomParams=${tokenCustomParams != null}")
-            startTS43Flow(activity, phoneNumber, TS43Operation.VERIFY_PHONE_NUMBER, customParams, tokenCustomParams, callback)
+            verifyPhoneNumber(
+                activity,
+                phoneNumber,
+                optionsFromLegacyMaps(customParams, tokenCustomParams),
+                callback
+            )
+        }
+
+        /**
+         * Verify a phone number using TS43 CIBA flow with channel options.
+         *
+         * @param activity The activity context (required for Credential Manager).
+         * @param phoneNumber Phone number to verify in E.164 format without '+'.
+         * @param options Partner parameters, headers and overrides for the TS43 backend calls.
+         * @param callback Callback to receive the verification result.
+         */
+        @JvmStatic
+        fun verifyPhoneNumber(
+            activity: Activity,
+            phoneNumber: String,
+            options: TS43ChannelOptions,
+            callback: TS43Callback
+        ) {
+            onLog("TS43Services.verifyPhoneNumber: phoneNumberLength=${phoneNumber.length} authParams=${options.authParams.keys} tokenParams=${options.tokenParams.keys} headers=${options.headers.keys}")
+            startTS43Flow(activity, phoneNumber, TS43Operation.VERIFY_PHONE_NUMBER, options, callback)
         }
 
         /**
@@ -195,8 +219,53 @@ class TS43Services {
             tokenCustomParams: Map<String, String>? = null,
             callback: TS43Callback
         ) {
-            onLog("TS43Services.getPhoneNumber: hasCustomParams=${customParams != null} hasTokenCustomParams=${tokenCustomParams != null}")
-            startTS43Flow(activity, IPConfiguration.getInstance().TS43_DEFALT_LOGIN_HINT_SCOPE_GET_PHONE, TS43Operation.GET_PHONE_NUMBER, customParams, tokenCustomParams, callback)
+            getPhoneNumber(activity, optionsFromLegacyMaps(customParams, tokenCustomParams), callback)
+        }
+
+        /**
+         * Get phone number from SIM using TS43 CIBA flow with channel options.
+         *
+         * @param activity The activity context (required for Credential Manager).
+         * @param options Partner parameters, headers and overrides for the TS43 backend calls.
+         * @param callback Callback to receive the phone number result.
+         */
+        @JvmStatic
+        fun getPhoneNumber(
+            activity: Activity,
+            options: TS43ChannelOptions,
+            callback: TS43Callback
+        ) {
+            onLog("TS43Services.getPhoneNumber: authParams=${options.authParams.keys} tokenParams=${options.tokenParams.keys} headers=${options.headers.keys}")
+            startTS43Flow(activity, IPConfiguration.getInstance().TS43_DEFALT_LOGIN_HINT_SCOPE_GET_PHONE, TS43Operation.GET_PHONE_NUMBER, options, callback)
+        }
+
+        /**
+         * Converts the legacy map-based parameters into channel options, dropping keys the SDK owns
+         * instead of failing so older integrations keep working.
+         */
+        private fun optionsFromLegacyMaps(
+            customParams: Map<String, String>?,
+            tokenCustomParams: Map<String, String>?
+        ): TS43ChannelOptions {
+            if (customParams.isNullOrEmpty() && tokenCustomParams.isNullOrEmpty()) {
+                return TS43ChannelOptions.EMPTY
+            }
+            val builder = TS43ChannelOptions.Builder()
+            customParams?.forEach { (key, value) ->
+                if (key in TS43ChannelOptions.RESERVED_AUTH_KEYS) {
+                    onLog("Ignoring reserved TS43 auth param from legacy customParams: $key")
+                } else {
+                    builder.addAuthParam(key, value)
+                }
+            }
+            tokenCustomParams?.forEach { (key, value) ->
+                if (key in TS43ChannelOptions.RESERVED_TOKEN_KEYS) {
+                    onLog("Ignoring reserved TS43 token param from legacy tokenCustomParams: $key")
+                } else {
+                    builder.addTokenParam(key, value)
+                }
+            }
+            return builder.build()
         }
 
         /**
@@ -297,7 +366,8 @@ class TS43Services {
                                     vpToken = vpToken,
                                     authReqId = authResponse.authReqId,
                                     clientId = request.clientId,
-                                    customParams = request.tokenCustomParams
+                                    customParams = request.tokenCustomParams,
+                                    headers = request.headers
                                 )
                                 service.performTokenExchange(
                                     request = tokenRequest,
@@ -392,8 +462,7 @@ class TS43Services {
             activity: Activity,
             phoneNumber: String?,
             operation: TS43Operation,
-            customParams: Map<String, String>? = null,
-            tokenCustomParams: Map<String, String>? = null,
+            options: TS43ChannelOptions,
             callback: TS43Callback
         ) {
             // Check if device is Android Go - TS43 is not supported on Android Go
@@ -414,18 +483,12 @@ class TS43Services {
             val requestBuilder = TS43AuthRequest.Builder()
                 .setLoginHint(phoneNumber)
                 .setOperation(operation)
-                
-            customParams?.let { params ->
-                for ((key, value) in params) {
-                    requestBuilder.addCustomParam(key, value)
-                }
-            }
-                
-            tokenCustomParams?.let { params ->
-                for ((key, value) in params) {
-                    requestBuilder.addTokenCustomParam(key, value)
-                }
-            }
+
+            options.scope?.let { requestBuilder.setScope(it) }
+            options.carrierHint?.let { requestBuilder.setCarrierHint(it) }
+            options.authParams.forEach { (key, value) -> requestBuilder.addCustomParam(key, value) }
+            options.tokenParams.forEach { (key, value) -> requestBuilder.addTokenCustomParam(key, value) }
+            options.headers.forEach { (key, value) -> requestBuilder.addHeader(key, value) }
 
             try {
                 val request = requestBuilder.build()
