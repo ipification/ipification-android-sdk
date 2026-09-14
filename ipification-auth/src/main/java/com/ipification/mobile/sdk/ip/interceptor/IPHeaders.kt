@@ -23,6 +23,9 @@ internal object IPHeaders {
     /** Android API level. */
     const val OS_API_LEVEL = "os-sdk"
 
+    /** Whether the device shows signs of being rooted. Value is `yes` or `no`. */
+    const val ROOTED = "rooted"
+
     // First SIM headers
 
     /** Mobile country code reported by SIM slot 1. */
