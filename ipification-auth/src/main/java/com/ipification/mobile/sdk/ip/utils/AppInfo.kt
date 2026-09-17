@@ -40,15 +40,24 @@ internal data class AppInfo(
                     packageInfo.versionCode.toLong()
                 }
                 AppInfo(
-                    packageName = packageName,
-                    versionName = packageInfo.versionName.orEmpty(),
+                    packageName = packageName.toHeaderValue(),
+                    versionName = packageInfo.versionName.orEmpty().toHeaderValue(),
                     versionCode = versionCode.toString()
                 )
             } catch (e: Exception) {
                 IPLogs.getInstance().LOG += "AppInfo - unable to read package info: ${e.message}\n"
-                AppInfo(packageName = packageName, versionName = "", versionCode = "")
+                AppInfo(packageName = packageName.toHeaderValue(), versionName = "", versionCode = "")
             }
         }
+
+        /**
+         * Keeps only printable ASCII so the value is always a legal HTTP header value. OkHttp
+         * rejects other characters with an IllegalArgumentException, which would fail the request.
+         */
+        private fun String.toHeaderValue(): String =
+            filter { it == '\t' || it in '\u0020'..'\u007e' }.take(MAX_HEADER_VALUE_LENGTH)
+
+        private const val MAX_HEADER_VALUE_LENGTH = 256
 
         private fun PackageManager.getPackageInfoCompat(packageName: String) =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

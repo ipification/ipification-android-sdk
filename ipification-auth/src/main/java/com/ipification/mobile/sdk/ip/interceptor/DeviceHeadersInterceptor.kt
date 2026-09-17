@@ -1,6 +1,7 @@
 package com.ipification.mobile.sdk.ip.interceptor
 
 import android.content.Context
+import com.ipification.mobile.sdk.ip.utils.IPLogs
 import okhttp3.Interceptor
 import okhttp3.Response
 
@@ -16,9 +17,18 @@ internal class DeviceHeadersInterceptor(context: Context) : Interceptor {
     private val context = context.applicationContext
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val requestBuilder = chain.request().newBuilder()
-        SdkRequestHeaders.addSdkHeaders(requestBuilder, context)
-        SdkRequestHeaders.addCarrierHeaders(requestBuilder, context)
-        return chain.proceed(requestBuilder.build())
+        val request = runCatching {
+            val requestBuilder = chain.request().newBuilder()
+            SdkRequestHeaders.addSdkHeaders(requestBuilder, context)
+            SdkRequestHeaders.addCarrierHeaders(requestBuilder, context)
+            requestBuilder.build()
+        }.getOrElse { e ->
+            // Header collection must never break the TS.43 / SMS request itself: on any failure
+            // (telephony restrictions, an invalid header value, ...) send the original request.
+            IPLogs.getInstance().LOG +=
+                "DeviceHeadersInterceptor - skipped device headers: ${e.message}\n"
+            chain.request()
+        }
+        return chain.proceed(request)
     }
 }
