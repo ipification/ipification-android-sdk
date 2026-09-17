@@ -1,5 +1,7 @@
 package com.ipification.mobile.sdk.ip.exception
 
+import com.ipification.mobile.sdk.ip.IPConfiguration
+
 /**
  * Public SDK error containing SDK, server, HTTP, channel, and exception details.
  *
@@ -22,6 +24,7 @@ class IPificationError {
         error_code = error.errorCode
         error_description = error.errorDescription
         exception = error.exception
+        state = error.state
     }
 
     /** HTTP status returned by the API, when available. */
@@ -41,6 +44,15 @@ class IPificationError {
 
     /** Original exception that caused the failure, when available. */
     var exception: Exception? = null
+
+    /**
+     * OAuth `state` of the authorization request that failed, captured when this error is created.
+     *
+     * Captured here rather than read at report time because IPConfiguration.currentState is a
+     * single shared value that the next IP-channel call resets; null when the channel never set a
+     * state (TS.43, SMS and IM do not).
+     */
+    var state: String? = IPConfiguration.getInstance().currentState.takeIf(String::isNotBlank)
 
     /** Clearer alias for [error_code]. */
     var serverErrorCode: String?

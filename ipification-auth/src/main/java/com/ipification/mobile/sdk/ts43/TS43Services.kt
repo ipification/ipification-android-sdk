@@ -763,7 +763,8 @@ class TS43Services {
                     sb.toString(),
                     "${error.sdkErrorCode}|${error.serverErrorCode ?: ""}",
                     phoneNumber,
-                    requestUrl
+                    requestUrl,
+                    error.state
                 )
             } catch (e: Exception) {
                 onLog("TS43 error report failed: ${e.message}")

@@ -121,7 +121,8 @@ class IMServices {
                 apiType = IPConfiguration.getInstance().AUTH_API_STR,
                 errorDescription = error.getErrorMessage(),
                 errorCode = "${error.sdkErrorCode}|${error.errorCode.orEmpty()}",
-                phoneNumber = authRequest.queryParameters?.get("login_hint")
+                phoneNumber = authRequest.queryParameters?.get("login_hint"),
+                state = error.state
             )
         }
     }

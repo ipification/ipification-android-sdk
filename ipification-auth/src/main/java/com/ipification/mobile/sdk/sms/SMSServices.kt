@@ -547,7 +547,8 @@ class SMSServices {
                     sb.toString(),
                     "${error.sdkErrorCode}|${error.serverErrorCode ?: ""}",
                     null,
-                    "sms_verification"
+                    "sms_verification",
+                    error.state
                 )
             } catch (e: Exception) {
                 onLog("safeReportError failed: ${e.message}")
