@@ -22,6 +22,7 @@ import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
+import com.ipification.mobile.sdk.ip.interceptor.DeviceHeadersInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -419,6 +420,7 @@ internal class TS43InternalService(private val context: Context) {
      */
     private fun createOkHttpClient(network: Network? = null): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(DeviceHeadersInterceptor(context))
             .apply {
                 if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     onLog { "TS43 OkHttp using explicit Wi-Fi/Ethernet network $network" }

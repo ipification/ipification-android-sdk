@@ -1,5 +1,7 @@
 package com.ipification.mobile.sdk.ip.exception
 
+import com.ipification.mobile.sdk.ip.IPConfiguration
+
 /**
  * Low-level cellular-flow error containing SDK, server, HTTP, and exception details.
  */
@@ -25,6 +27,14 @@ class CellularException {
 
     /** Original exception that caused the failure, when available. */
     var exception: Exception? = null
+
+    /**
+     * OAuth `state` of the authorization request that failed, captured when this error is created.
+     *
+     * Captured here rather than read later because IPConfiguration.currentState is a single shared
+     * value that the next IP-channel call resets; null when the channel never set a state.
+     */
+    var state: String? = IPConfiguration.getInstance().currentState.takeIf(String::isNotBlank)
 
     /** Returns a readable message containing all available error details. */
     fun getErrorMessage(): String {

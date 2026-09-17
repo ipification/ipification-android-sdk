@@ -384,7 +384,8 @@ class IPificationServices {
                                                 error.getErrorMessage(),
                                                 "${error.sdkErrorCode}|${error.serverErrorCode ?: ""}",
                                                 phoneNumber,
-                                                IPConfiguration.getInstance().IP_TOKEN_URL
+                                                IPConfiguration.getInstance().IP_TOKEN_URL,
+                                                error.state
                                             )
                                         } catch (reportError: Exception) {
                                             onLog("IP token exchange error report failed: ${reportError.message}")
@@ -646,16 +647,18 @@ class IPificationServices {
             val timeoutRunnable = Runnable {
                 finishOnce(hasDeliveredResult, isCoverageRequestInProgress) {
                     onLog("Coverage request timed out")
-                    callback.onError(IPificationError().apply {
+                    val timeoutError = IPificationError().apply {
                         serverErrorCode = "TIMEOUT"
                         serverDescription = "Coverage request timed out"
-                    })
+                    }
+                    callback.onError(timeoutError)
                     SubmitErrorService().sendErrorReport(
                         context = context,
                         apiType = IPConfiguration.getInstance().COVERAGE_API_STR,
                         errorDescription = "Coverage request timed out",
                         errorCode = "TIMEOUT",
-                        phoneNumber = phoneNumber
+                        phoneNumber = phoneNumber,
+                        state = timeoutError.state
                     )
                 }
             }
@@ -681,7 +684,8 @@ class IPificationServices {
                             apiType = IPConfiguration.getInstance().COVERAGE_API_STR,
                             errorDescription = error.getErrorMessage(),
                             errorCode = "${error.sdkErrorCode}|${error.errorCode.orEmpty()}",
-                            phoneNumber = phoneNumber
+                            phoneNumber = phoneNumber,
+                            state = error.state
                         )
                     }
                 }
@@ -759,7 +763,8 @@ class IPificationServices {
                 apiType = IPConfiguration.getInstance().AUTH_API_STR,
                 errorDescription = error.getErrorMessage(),
                 errorCode = "${error.sdkErrorCode}|${error.errorCode.orEmpty()}",
-                phoneNumber = authRequest.queryParameters?.get("login_hint")
+                phoneNumber = authRequest.queryParameters?.get("login_hint"),
+                state = error.state
             )
         }
 

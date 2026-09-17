@@ -24,6 +24,10 @@ class SubmitErrorService {
     /**
      * Builds and asynchronously submits an SDK error report.
      *
+     * [state] should be the value captured on the error object (IPificationError.state /
+     * CellularException.state) so the report carries the state of the request that actually
+     * failed. When null, the current IPConfiguration.currentState is used as a best effort.
+     *
      * Reporting failures are logged locally and never propagated to the active SDK operation.
      */
     @JvmOverloads
@@ -33,7 +37,8 @@ class SubmitErrorService {
         errorDescription: String,
         errorCode: String?,
         phoneNumber: String? = null,
-        requestUrl: String? = null
+        requestUrl: String? = null,
+        state: String? = null
     ) {
         if (!IPConfiguration.getInstance().sendErrorReportsEnabled) {
             log("Error reporting is disabled")
@@ -42,13 +47,16 @@ class SubmitErrorService {
 
         runCatching {
             val normalizedErrorCode = errorCode?.trim()?.trimEnd('|')
-            val logData = buildLogData(errorDescription, normalizedErrorCode, requestUrl)
+            // Prefer the state captured on the error; the global may already belong to a newer call.
+            val reportState = sanitizeValue(state ?: IPConfiguration.getInstance().currentState)
+            val logData = buildLogData(errorDescription, normalizedErrorCode, requestUrl, reportState)
             submitReport(
                 context = context.applicationContext,
                 apiType = apiType,
                 logData = logData,
                 errorType = parseType(logData, normalizedErrorCode),
-                phoneNumber = phoneNumber
+                phoneNumber = phoneNumber,
+                state = reportState
             )
         }.onFailure { exception ->
             Log.e(LOG_TAG, "Failed to prepare error report", exception)
@@ -56,15 +64,21 @@ class SubmitErrorService {
         }
     }
 
-    /** Creates the semicolon-delimited diagnostic payload expected by the reporting endpoint. */
+    /**
+     * Creates the semicolon-delimited diagnostic payload expected by the reporting endpoint.
+     *
+     * [state] is the already-sanitized OAuth state, passed in so that the `state=` entry here and
+     * the dedicated `state` form field in [submitReport] always carry the same value.
+     */
     private fun buildLogData(
         errorDescription: String,
         errorCode: String?,
-        requestUrl: String?
+        requestUrl: String?,
+        state: String?
     ): String {
         val fields = buildList {
             sanitizeValue(requestUrl)?.let { add("request_url=$it") }
-            sanitizeValue(IPConfiguration.getInstance().currentState)?.let { add("state=$it") }
+            state?.let { add("state=$it") }
             sanitizeValue(errorDescription, MAX_ERROR_DESCRIPTION_LENGTH)?.let {
                 add("error_description=$it")
             }
@@ -73,13 +87,20 @@ class SubmitErrorService {
         return fields.joinToString(separator = ";", postfix = ";")
     }
 
-    /** Sends the prepared report without exposing its potentially sensitive values in local logs. */
+    /**
+     * Sends the prepared report without exposing its potentially sensitive values in local logs.
+     *
+     * [state] is sent both inside `log_data` and as its own `state` field so the backend can
+     * correlate the report with the authorization request without parsing the payload. It is empty
+     * when the channel never set IPConfiguration.currentState (TS.43, SMS and IM do not).
+     */
     private fun submitReport(
         context: Context,
         apiType: String,
         logData: String,
         errorType: String,
-        phoneNumber: String?
+        phoneNumber: String?,
+        state: String?
     ) {
         val configuration = IPConfiguration.getInstance()
         val reportUrl = configuration.getSDKLogUrl()
@@ -90,6 +111,7 @@ class SubmitErrorService {
             .add("type", errorType)
             .add("api", apiType)
             .add("phone", phoneNumber.orEmpty())
+            .add("state", state.orEmpty())
             .build()
 
         val clientBuilder = OkHttpClient.Builder()
@@ -110,7 +132,7 @@ class SubmitErrorService {
             .post(body)
             .build()
 
-        log("Submitting $errorType report for $apiType")
+        log("Submitting $errorType report for $apiType (state=${state.orEmpty()})")
         clientBuilder.build().newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 log("Error report request failed: ${e.message}")

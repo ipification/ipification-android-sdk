@@ -25,6 +25,16 @@ internal object IPHeaders {
 
     /** Whether the device shows signs of being rooted. Value is `yes` or `no`. */
     const val ROOTED = "rooted"
+    // Host application headers
+
+    /** Host app package name (application ID). */
+    const val APP_PACKAGE = "app-package"
+
+    /** Host app version name. */
+    const val APP_VERSION = "app-version"
+
+    /** Host app version code. */
+    const val APP_BUILD = "app-build"
 
     // First SIM headers
 
