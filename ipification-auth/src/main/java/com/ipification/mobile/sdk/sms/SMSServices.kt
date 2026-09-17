@@ -21,6 +21,7 @@ import com.ipification.mobile.sdk.ip.utils.LogUtils
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import com.ipification.mobile.sdk.ip.interceptor.DeviceHeadersInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -115,14 +116,14 @@ class SMSServices {
         // Deliver all public callbacks on the main thread.
         private val mainHandler = Handler(Looper.getMainLooper())
 
-        // HTTP client with the SDK auth timeouts.
-        private val httpClient by lazy {
+        // HTTP client with the SDK auth timeouts; created per call so it picks up the caller's context.
+        private fun httpClient(context: Context): OkHttpClient =
             OkHttpClient.Builder()
+                .addInterceptor(DeviceHeadersInterceptor(context))
                 .connectTimeout(IPConfiguration.getInstance().AUTH_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS)
                 .readTimeout(IPConfiguration.getInstance().AUTH_READ_TIMEOUT, TimeUnit.MILLISECONDS)
                 .writeTimeout(IPConfiguration.getInstance().AUTH_READ_TIMEOUT, TimeUnit.MILLISECONDS)
                 .build()
-        }
 
         private val JSON = "application/json; charset=utf-8".toMediaTypeOrNull()
 
@@ -230,7 +231,7 @@ class SMSServices {
                 .applyCustomHeaders(options.headers)
                 .build()
 
-            httpClient.newCall(request).enqueue(object : Callback {
+            httpClient(activity).newCall(request).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     isRequestInProgress.set(false)
                     onLog("SMSServices: Auth request failed - ${e.message}")
@@ -402,7 +403,7 @@ class SMSServices {
                 .applyCustomHeaders(options.headers)
                 .build()
 
-            httpClient.newCall(request).enqueue(object : Callback {
+            httpClient(activity).newCall(request).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     isRequestInProgress.set(false)
                     onLog("SMSServices: Token request failed - ${e.message}")
