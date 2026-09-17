@@ -225,6 +225,7 @@ class DeviceUtils private constructor(context: Context) {
                 .appendLine("ACTIVE OPERATOR NAME: ${activeSimOperator.getOperatorName()}")
         }
 
+        val appInfo = AppInfo.get(context)
         val configuration = IPConfiguration.getInstance()
         log.appendLine("-------------------------------------")
             .appendLine("WIFI: ${enabledState(NetworkUtils.isWifiEnabled(context))}")
@@ -234,6 +235,7 @@ class DeviceUtils private constructor(context: Context) {
             .appendLine("DEVICE NAME: ${Build.MANUFACTURER} - ${Build.MODEL}")
             .appendLine("OS VERSION: ${Build.VERSION.RELEASE} - ${Build.VERSION.SDK_INT}")
             .appendLine("SDK VERSION: ${BuildConfig.VERSION_NAME}")
+            .appendLine("APP: ${appInfo.packageName} ${appInfo.versionName} (${appInfo.versionCode})")
             .appendLine("COOKIE HANDLING: ${enabledState(configuration.enabledHandleCookie)}")
             .appendLine("-------------------------------------")
             .appendLine("INPUT PHONE NUMBER: ${redactPhoneNumber(inputPhone)}")

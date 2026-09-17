@@ -5,6 +5,7 @@ import android.os.Build
 import android.telephony.TelephonyManager
 import com.ipification.mobile.sdk.BuildConfig
 import com.ipification.mobile.sdk.ip.IPConfiguration
+import com.ipification.mobile.sdk.ip.utils.AppInfo
 import com.ipification.mobile.sdk.ip.utils.DeviceUtils
 import com.ipification.mobile.sdk.ip.utils.NetworkUtils
 import okhttp3.Interceptor
@@ -20,6 +21,7 @@ class SdkLogInterceptor(context: Context) : Interceptor {
 
     private val context = context.applicationContext
     private val deviceUtils = DeviceUtils.getInstance(context)
+    private val appInfo = AppInfo.get(context)
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val requestBuilder = chain.request().newBuilder()
@@ -32,7 +34,7 @@ class SdkLogInterceptor(context: Context) : Interceptor {
         return chain.proceed(requestBuilder.build())
     }
 
-    /** Adds client, SDK, and device information required by error reporting. */
+    /** Adds client, SDK, device, and host app information required by error reporting. */
     private fun addRequiredHeaders(requestBuilder: Request.Builder) {
         requestBuilder
             .addHeader(IPHeaders.CLIENT_ID, IPConfiguration.getInstance().CLIENT_ID)
@@ -41,6 +43,9 @@ class SdkLogInterceptor(context: Context) : Interceptor {
             .addHeader(IPHeaders.DEVICE_NAME, "${Build.MANUFACTURER} - ${Build.MODEL}")
             .addHeader(IPHeaders.OS_VERSION, Build.VERSION.RELEASE)
             .addHeader(IPHeaders.OS_API_LEVEL, Build.VERSION.SDK_INT.toString())
+            .addHeader(IPHeaders.APP_PACKAGE, appInfo.packageName)
+            .addHeader(IPHeaders.APP_VERSION, appInfo.versionName)
+            .addHeader(IPHeaders.APP_BUILD, appInfo.versionCode)
     }
 
     /** Adds SIM and active data-session information when enabled. */

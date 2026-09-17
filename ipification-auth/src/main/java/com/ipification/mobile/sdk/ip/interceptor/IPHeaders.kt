@@ -23,6 +23,17 @@ internal object IPHeaders {
     /** Android API level. */
     const val OS_API_LEVEL = "os-sdk"
 
+    // Host application headers
+
+    /** Host app package name (application ID). */
+    const val APP_PACKAGE = "app-package"
+
+    /** Host app version name. */
+    const val APP_VERSION = "app-version"
+
+    /** Host app version code. */
+    const val APP_BUILD = "app-build"
+
     // First SIM headers
 
     /** Mobile country code reported by SIM slot 1. */
