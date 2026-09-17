@@ -23,6 +23,8 @@ internal object IPHeaders {
     /** Android API level. */
     const val OS_API_LEVEL = "os-sdk"
 
+    /** Whether the device shows signs of being rooted. Value is `yes` or `no`. */
+    const val ROOTED = "rooted"
     // Host application headers
 
     /** Host app package name (application ID). */
