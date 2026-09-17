@@ -36,6 +36,9 @@ internal object IPHeaders {
     /** Host app version code. */
     const val APP_BUILD = "app-build"
 
+    /** Whether automatic error reporting to the IP server is enabled. Value is `on` or `off`. */
+    const val ERROR_REPORT = "error-report"
+
     // First SIM headers
 
     /** Mobile country code reported by SIM slot 1. */

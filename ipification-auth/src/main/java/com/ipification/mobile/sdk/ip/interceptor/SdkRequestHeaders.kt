@@ -30,7 +30,12 @@ internal object SdkRequestHeaders {
             .addHeader(IPHeaders.APP_PACKAGE, appInfo.packageName)
             .addHeader(IPHeaders.APP_VERSION, appInfo.versionName)
             .addHeader(IPHeaders.APP_BUILD, appInfo.versionCode)
+            .addHeader(IPHeaders.ERROR_REPORT, errorReportState())
     }
+
+    /** `on` when the SDK submits error reports to the IP server, `off` when the host app disabled it. */
+    fun errorReportState(): String =
+        if (IPConfiguration.getInstance().sendErrorReportsEnabled) "on" else "off"
 
     /** Adds SIM, network state and active data-session information. */
     fun addCarrierHeaders(requestBuilder: Request.Builder, context: Context): Request.Builder {

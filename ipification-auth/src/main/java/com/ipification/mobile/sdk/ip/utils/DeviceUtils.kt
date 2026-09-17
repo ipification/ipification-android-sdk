@@ -237,6 +237,7 @@ class DeviceUtils private constructor(context: Context) {
             .appendLine("OS VERSION: ${Build.VERSION.RELEASE} - ${Build.VERSION.SDK_INT}")
             .appendLine("SDK VERSION: ${BuildConfig.VERSION_NAME}")
             .appendLine("APP: ${appInfo.packageName} ${appInfo.versionName} (${appInfo.versionCode})")
+            .appendLine("ERROR REPORT: ${enabledState(configuration.sendErrorReportsEnabled)}")
             .appendLine("COOKIE HANDLING: ${enabledState(configuration.enabledHandleCookie)}")
             .appendLine("-------------------------------------")
             .appendLine("INPUT PHONE NUMBER: ${redactPhoneNumber(inputPhone)}")

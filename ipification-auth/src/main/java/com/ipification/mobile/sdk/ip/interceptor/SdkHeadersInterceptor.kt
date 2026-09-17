@@ -63,6 +63,7 @@ class SdkHeadersInterceptor(
             .addHeader(IPHeaders.APP_PACKAGE, appInfo.packageName)
             .addHeader(IPHeaders.APP_VERSION, appInfo.versionName)
             .addHeader(IPHeaders.APP_BUILD, appInfo.versionCode)
+            .addHeader(IPHeaders.ERROR_REPORT, SdkRequestHeaders.errorReportState())
 
         if (includeCarrierHeaders) {
             addCarrierHeaders(requestBuilder)
