@@ -15,7 +15,7 @@ It does not download the SDK from Maven or any external package source.
 When the SDK is published, client apps should use this Maven coordinate:
 
 ```gradle
-implementation "com.ipification.android:ipification-sdk:2.2.8"
+implementation "com.ipification.android:ipification-sdk:2.2.9"
 ```
 
 ## Project Structure
@@ -36,7 +36,7 @@ implementation "com.ipification.android:ipification-sdk:2.2.8"
 The SDK library module publishes the release artifact:
 
 ```text
-com.ipification.android:ipification-sdk:2.2.8
+com.ipification.android:ipification-sdk:2.2.9
 ```
 
 ## Build The Demo
