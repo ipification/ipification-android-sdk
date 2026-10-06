@@ -191,7 +191,7 @@ class DeviceUtils private constructor(context: Context) {
         return telephonyManager.createForSubscriptionId(subscriptionId)
     }
 
-    /** Generates device and carrier diagnostics, with the supplied phone number redacted. */
+    /** Generates device and carrier diagnostics, including the supplied phone number. */
     fun generateHeaderLogs(inputPhone: String): String {
         val activeSimOperator = activeSimOperator()
         val infoSIM1 = getInfoSIM1()
@@ -240,7 +240,7 @@ class DeviceUtils private constructor(context: Context) {
             .appendLine("ERROR REPORT: ${enabledState(configuration.sendErrorReportsEnabled)}")
             .appendLine("COOKIE HANDLING: ${enabledState(configuration.enabledHandleCookie)}")
             .appendLine("-------------------------------------")
-            .appendLine("INPUT PHONE NUMBER: ${redactPhoneNumber(inputPhone)}")
+            .appendLine("INPUT PHONE NUMBER: $inputPhone")
             .appendLine("-------------------------------------")
             .appendLine("#####################################")
             .appendLine("#####################################")
@@ -249,8 +249,4 @@ class DeviceUtils private constructor(context: Context) {
     }
 
     private fun enabledState(enabled: Boolean): String = if (enabled) "enabled" else "disabled"
-
-    private fun redactPhoneNumber(phoneNumber: String): String {
-        return phoneNumber.takeLast(4).padStart(phoneNumber.length, '*')
-    }
 }
