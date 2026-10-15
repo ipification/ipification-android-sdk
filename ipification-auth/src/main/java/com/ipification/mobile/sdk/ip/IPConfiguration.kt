@@ -291,6 +291,9 @@ class IPConfiguration private constructor() {
     /** Default carrier hint used by TS43 requests. */
     var TS43_DEFAULT_CARRIER_HINT: String = ""
 
+    /** Prefer immediately available TS43 credentials. Defaults to false. */
+    var TS43_PREFER_IMMEDIATELY_AVAILABLE_CREDENTIALS: Boolean = false
+
 
     /**
      * Get the resolved TS43 backend URL based on environment.

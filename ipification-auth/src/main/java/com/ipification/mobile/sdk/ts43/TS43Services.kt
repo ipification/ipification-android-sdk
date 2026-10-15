@@ -546,7 +546,16 @@ class TS43Services {
             onLog("Credential Manager request body:\n$requestJson")
 
             val option = GetDigitalCredentialOption(requestJson = requestJson)
-            val request = GetCredentialRequest(listOf(option))
+            val config = IPConfiguration.getInstance()
+            val request = GetCredentialRequest(
+                credentialOptions = listOf(option),
+                preferImmediatelyAvailableCredentials =
+                    config.TS43_PREFER_IMMEDIATELY_AVAILABLE_CREDENTIALS
+            )
+            onLog(
+                "Credential Manager request preferImmediatelyAvailableCredentials: " +
+                    request.preferImmediatelyAvailableCredentials
+            )
 
             // Use the main executor so app callbacks are delivered on the UI thread.
             credentialManager.getCredentialAsync(
